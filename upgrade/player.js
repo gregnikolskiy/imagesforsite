@@ -1704,4 +1704,30 @@ var startNick = hashNick || savedNick;
 if (startNick) screenLoading(startNick); else screenLogin('');
 music.showBtn();
 
+// Фоновая подгрузка всех картинок в кэш, пока игрок вводит ник.
+// Порядок повторяет путь игрока; вернувшемуся игроку сначала грузим то, что нужно в профиле.
+var preloaded = [];
+(function preloadImages() {
+  var L = CONFIG.LEVEL_IMAGES || {}, lvl = [], cls = [];
+  Object.keys(L).forEach(function (at) { ['m', 'f'].forEach(function (g) { Object.keys(L[at][g] || {}).forEach(function (c) { lvl.push(L[at][g][c]); }); }); });
+  ['m', 'f'].forEach(function (g) { Object.keys(CONFIG.IMAGES[g] || {}).forEach(function (c) { cls.push(CONFIG.IMAGES[g][c]); }); });
+  var flow = [CONFIG.CITY_IMAGE, CONFIG.VILLAGE_IMAGE, CONFIG.GENDER_IMAGES.m, CONFIG.GENDER_IMAGES.f]
+    .concat(cls, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], lvl);
+  if (startNick) flow = [CONFIG.CITY_IMAGE].concat(lvl, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], flow);
+  var seen = {}, queue = flow.filter(function (u) { if (!u || seen[u] || /^data:/.test(u)) return false; seen[u] = 1; return true; });
+  var next = function () {
+    var url = queue.shift();
+    if (!url) return;
+    var im = new Image();
+    preloaded.push(im);
+    im.onload = function () {
+      // заранее декодируем, чтобы картинка появилась на экране без задержки
+      if (im.decode) im.decode().then(next, next); else next();
+    };
+    im.onerror = next;
+    im.src = url;
+  };
+  for (var i = 0; i < 3; i++) next(); // три загрузки параллельно
+})();
+
 })();
