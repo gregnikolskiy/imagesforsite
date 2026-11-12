@@ -545,6 +545,7 @@ var music = (function () {
       } else {
         if (!ctx) build();
         if (ctx.state === 'suspended') ctx.resume();
+        unlockIOS();
         if (!timer) { nextTime = ctx.currentTime + 0.1; step = 0; timer = setInterval(runTrack, 100); runTrack(); }
         if (!muted) fadeTo(VOL, 0.12);
       }
@@ -678,8 +679,30 @@ var music = (function () {
     }
   }
   // создать звуковой контекст прямо в момент нажатия, чтобы браузер разрешил звук после ответа сервера
-  function prime() { try { if (!ctx) build(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) {} }
-  return { start: start, stop: stop, toggle: toggle, sfx: sfx, prime: prime, showBtn: function () { btn(true); }, isPlaying: function () { return playing; } };
+  function prime() { try { if (!ctx) build(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) {} unlockIOS(); }
+  // iPhone глушит Web Audio беззвучным режимом. Просим «режим воспроизведения»,
+  // а на старых iOS включаем тихий аудиофайл: после него звук идёт и при выключенном звонке.
+  var iosEl = null;
+  function unlockIOS() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!ios || iosEl || navigator.audioSession) return;
+    try {
+      iosEl = document.createElement('audio');
+      iosEl.setAttribute('playsinline', ''); iosEl.setAttribute('x-webkit-airplay', 'deny'); iosEl.loop = true; iosEl.preload = 'auto';
+      iosEl.src = silentWav();
+      var pr = iosEl.play(); if (pr && pr.catch) pr.catch(function () { iosEl = null; });
+    } catch (e) { iosEl = null; }
+  }
+  // полсекунды тишины в формате WAV (8 кГц, 8 бит), собираем на лету
+  function silentWav() {
+    var n = 4000, b = 'RIFF', le = function (v, k) { var r = ''; for (var i = 0; i < k; i++) { r += String.fromCharCode(v & 255); v >>= 8; } return r; };
+    b += le(36 + n, 4) + 'WAVEfmt ' + le(16, 4) + le(1, 2) + le(1, 2) + le(8000, 4) + le(8000, 4) + le(1, 2) + le(8, 2) + 'data' + le(n, 4);
+    for (var i = 0; i < n; i++) b += String.fromCharCode(128);
+    return 'data:audio/wav;base64,' + btoa(b);
+  }
+  function running() { return !!ctx && ctx.state === 'running'; }
+  return { start: start, stop: stop, toggle: toggle, sfx: sfx, prime: prime, running: running, showBtn: function () { btn(true); }, isPlaying: function () { return playing; } };
 })();
 var ICONS_SND = {
   on: '<svg class="ug-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
@@ -1669,12 +1692,17 @@ root.addEventListener('keydown', function (e) {
     e.preventDefault(); pickClass(e.target);
   }
 });
-// звук нажатий: на pointerdown, чтобы откликался без задержки
-// на экране входа музыка загрузки стартует с первого касания (раньше браузер не даст)
-root.addEventListener('pointerdown', function (e) {
+// Музыка стартует с первого касания на любом экране: раньше браузер звук не разрешит.
+// На телефонах разрешение даёт только отпускание пальца (touchend/click), поэтому слушаем все три события
+// и повторяем попытку, пока звук реально не заиграет.
+function unlockMusic(e) {
   if (e.target.closest && e.target.closest('.ug-sound')) return;
-  if (S.screen === 'login' && !music.isPlaying() && store.get('ug_muted') !== '1') music.start('ambient');
-}, true);
+  if (store.get('ug_muted') === '1') return;
+  if (!music.isPlaying()) music.start(S.screen === 'login' ? 'ambient' : 'epic');
+  else music.prime();
+  if (music.running()) ['pointerdown', 'touchend', 'click'].forEach(function (t) { root.removeEventListener(t, unlockMusic, true); });
+}
+['pointerdown', 'touchend', 'click'].forEach(function (t) { root.addEventListener(t, unlockMusic, true); });
 root.addEventListener('pointerdown', function (e) {
   var el = e.target.closest('.ug-btn, .ug-chip, .ug-class, .ug-gender, .ug-link, .ug-rbtn, .ug-linkbox button, .ug-x, .ug-drop');
   if (!el || el.disabled || el.classList.contains('is-loading')) return;
