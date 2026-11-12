@@ -398,7 +398,7 @@
   opacity:0;transform:translateY(-6px);transition:opacity .25s,transform .25s;pointer-events:none}
 #ug-root .ug-bubble::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;background:inherit;border-right:1px solid var(--acc);border-bottom:1px solid var(--acc);transform:translateX(-50%) rotate(45deg)}
 #ug-root .ug-bubble.is-on{opacity:1;transform:none}
-#ug-root .ug-origin-btn{margin:14px 8px 0;width:calc(100% - 16px);min-height:54px;font-size:16px}
+#ug-root .ug-btn.ug-origin-btn{margin:14px 8px 0;width:calc(100% - 16px);display:flex;box-sizing:border-box;min-height:54px;font-size:16px}
 #ug-root .ug-qrow,#ug-root .ug-item{cursor:pointer;transition:background .2s}
 #ug-root .ug-qrow:hover{background:rgba(255,255,255,.03)}
 #ug-root .ug-item:hover{border-color:var(--acc)}
@@ -495,6 +495,13 @@
 #ug-root .ug-loot .ug-pet-egg .ug-ico{width:28px;height:28px}
 #ug-root .ug-loot .ug-pet-t{font-size:13px}
 #ug-root .ug-loot .ug-pet-d{font-size:12px;margin-top:4px}
+/* узкая колонка героя: иконка над текстом, чтобы длинные названия не вылезали за рамку */
+#ug-root .ug-loot .ug-petcard{flex-direction:column;align-items:flex-start;gap:8px}
+#ug-root .ug-loot .ug-petcard > div:last-child{min-width:0;max-width:100%}
+#ug-root .ug-loot .ug-pet-t{overflow-wrap:anywhere}
+#ug-root .ug-loot .ug-pet-d{white-space:nowrap}
+#ug-root .ug-loot .ug-pet-egg{width:34px;height:40px}
+#ug-root .ug-loot .ug-pet-egg svg{width:32px;height:38px}
 #ug-root .ug-weapon .ug-pet-egg{animation:ug-buzz 6s ease-in-out infinite}
 @keyframes ug-buzz{0%,88%,100%{transform:none}90%{transform:translateX(-2px)}92%{transform:translateX(2px)}94%{transform:translateX(-1px)}96%{transform:translateX(1px)}}
 
@@ -617,7 +624,7 @@
 @keyframes ug-ctapulse{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 transparent)}50%{transform:scale(1.06);filter:drop-shadow(0 0 22px var(--acc)) brightness(1.1)}}
 @keyframes ug-ctashine{0%{left:-40%}55%,100%{left:130%}}
 /* звук: оставляем ему место в шапке профиля */
-@media (max-width:1460px){#ug-root .ug-topbar{padding-right:130px}}
+@media (max-width:1480px){#ug-root .ug-topbar{padding-right:150px}}
 @media (max-width:760px){#ug-root .ug-topbar{padding-right:46px}}
 /* звук */
 #ug-root .ug-sound{position:fixed;top:14px;right:14px;z-index:15;display:flex;align-items:center;gap:8px;padding:8px 12px;
@@ -633,7 +640,7 @@
 /* невысокие экраны ноутбуков: ужимаем отступы, чтобы питомец и оружие оставались в первом экране */
 @media (min-width:981px) and (max-height:820px){
   #ug-root .ug-wrap{padding-top:14px}
-  #ug-root .ug-topbar{padding:10px 0 14px;margin-bottom:16px}
+  #ug-root .ug-topbar{padding-top:10px;padding-bottom:14px;margin-bottom:16px}
   #ug-root .ug-hero{top:12px}
   #ug-root .ug-hero-tag{margin-top:10px}
   #ug-root .ug-level{margin-top:6px}
@@ -641,7 +648,7 @@
   #ug-root .ug-segs-cap{display:none}
   #ug-root .ug-origin-btn{min-height:46px;margin-top:10px}
   #ug-root .ug-loot{margin-top:8px}
-  #ug-root .ug-loot .ug-petcard{min-height:64px;padding:8px 10px}
+  #ug-root .ug-loot .ug-petcard{min-height:64px;padding:8px 10px;gap:6px}
 }
 
 /* ===== АДАПТИВ ===== */
