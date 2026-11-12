@@ -825,7 +825,7 @@ function submitLogin(form) {
     btn.classList.remove('is-loading');
     if (!res || !res.ok) { err.textContent = 'Не получилось связаться с сервером. Попробуй ещё раз.'; return; }
     if (res.settings) S.settings = res.settings;
-    if (res.exists) { S.player = res.player; remember(nick); S.screen = 'dash'; if (music.isPlaying()) music.start('epic'); screenDash(); return; }
+    if (res.exists) { S.player = res.player; remember(nick); S.screen = 'dash'; if (store.get('ug_muted') !== '1') music.start('epic'); screenDash(); return; }
     S.draft = { nick: nick };
     S.screen = 'lore';
     music.start('epic');
@@ -1589,7 +1589,7 @@ function closeModal() {
 var lastRefresh = 0;
 function refresh() {
   if (!S.player || !S.nick || root.querySelector('.ug-modal')) return;
-  if (Date.now() - lastRefresh < 15000) return;
+  if (Date.now() - lastRefresh < 10000) return;
   lastRefresh = Date.now();
   apiGet(S.nick).then(function (res) {
     if (!res || !res.ok || !res.exists) return;
@@ -1599,6 +1599,14 @@ function refresh() {
   }).catch(function () {});
 }
 document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+window.addEventListener('focus', refresh);
+// пока квест на проверке и профиль открыт на экране, раз в 30 секунд спрашиваем таблицу:
+// как только Гриша засчитает квест, поздравление появится без перезагрузки
+setInterval(function () {
+  if (document.hidden || !S.player || !root.classList.contains('is-dash')) return;
+  var waiting = QUESTS.some(function (q) { return questState(q.id) === 'review'; });
+  if (waiting) refresh();
+}, 30000);
 
 /* ---------- демо-панель ---------- */
 function demoPanel() {
@@ -1698,8 +1706,10 @@ root.addEventListener('keydown', function (e) {
 function unlockMusic(e) {
   if (e.target.closest && e.target.closest('.ug-sound')) return;
   if (store.get('ug_muted') === '1') return;
-  if (!music.isPlaying()) music.start(S.screen === 'login' ? 'ambient' : 'epic');
-  else music.prime();
+  // на экране входа музыку сами не включаем: только готовим звук для щелчков,
+  // а трек стартует на следующем экране. Включить её здесь можно кнопкой «Звук».
+  if (S.screen === 'login' || music.isPlaying()) music.prime();
+  else music.start('epic');
   if (music.running()) ['pointerdown', 'touchend', 'click'].forEach(function (t) { root.removeEventListener(t, unlockMusic, true); });
 }
 ['pointerdown', 'touchend', 'click'].forEach(function (t) { root.addEventListener(t, unlockMusic, true); });
