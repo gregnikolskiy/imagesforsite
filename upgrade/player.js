@@ -686,7 +686,8 @@ var music = (function () {
   function unlockIOS() {
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
     var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (!ios || iosEl || navigator.audioSession) return;
+    // во встроенных браузерах (Telegram, Instagram) audioSession может не сработать, поэтому тихий файл включаем всегда
+    if (!ios || iosEl) return;
     try {
       iosEl = document.createElement('audio');
       iosEl.setAttribute('playsinline', ''); iosEl.setAttribute('x-webkit-airplay', 'deny'); iosEl.loop = true; iosEl.preload = 'auto';
