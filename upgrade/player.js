@@ -2055,7 +2055,11 @@ function boomPlayer(box, srcv, id, title) {
     if (!d || !d.method) return;
     st.alive = true;
     if (d.method === 'loaded') { st.loaded = true; if (st.want) send('play'); }
-    else if (d.method === 'play') { st.want = false; clearTimeout(st.timer); mode('playing'); }
+    else if (d.method === 'play') {
+      st.want = false; clearTimeout(st.timer); mode('playing');
+      // плеер на телефоне стартует без звука; сразу после первого старта включаем звук сами
+      if (!st.unmuted) { st.unmuted = true; send('unmute'); setTimeout(function () { send('unmute'); }, 400); }
+    }
     else if (d.method === 'pause') { if (!st.want) mode('pause'); }
     else if (d.method === 'stop') { mode('end'); markWatched(id); }
     if (d.duration > 0 && d.time / d.duration >= 0.8) markWatched(id);
