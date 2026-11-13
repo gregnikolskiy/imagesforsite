@@ -2028,11 +2028,15 @@ function boomPlayer(box, srcv, id, title) {
     '</div>';
   var frame = box.querySelector('iframe'), cover = box.querySelector('.ug-pcover');
   var st = { loaded: false, want: false, alive: false, timer: 0 };
+  // На телефонах видео со звуком запускается только касанием самого плеера: команда со страницы
+  // включает его без звука. Поэтому там наша обложка лишь рисуется, а касание проходит сквозь неё в плеер.
+  var touch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || /iP(hone|ad|od)|Android/.test(navigator.userAgent);
+  var touchCls = touch ? ' is-touch' : '';
   var send = function (action, data) {
     try { frame.contentWindow.postMessage({ code: srcv.code, method: 'action', action: action, data: data || '' }, origin); } catch (e) {}
   };
   var mode = function (m) {
-    cover.className = 'ug-pcover is-' + m;
+    cover.className = 'ug-pcover is-' + m + touchCls;
     var cap = cover.querySelector('.ug-pcap span');
     if (cap) cap.textContent = m === 'pause' ? 'Пауза' : m === 'end' ? 'Посмотреть ещё раз' : m === 'wait' ? 'Загружаем видео' : 'Нажми, чтобы начать урок';
   };
@@ -2058,8 +2062,22 @@ function boomPlayer(box, srcv, id, title) {
   };
   window.addEventListener('message', onMsg);
   S.boomStart = start;
+  var onBlur = null;
+  if (touch) {
+    cover.className += touchCls;
+    // касание ушло в плеер: ждём, что он ответит «пошло», иначе убираем обложку
+    onBlur = function () {
+      if (document.activeElement !== frame) return;
+      if (!/is-(start|end)/.test(cover.className)) return;
+      mode('wait'); clearTimeout(st.timer);
+      st.timer = setTimeout(function () { if (/is-wait/.test(cover.className)) mode('gone'); }, 3000);
+    };
+    window.addEventListener('blur', onBlur);
+    // плеер молчит: обложку не держим, иначе видео заиграет под ней невидимым
+    setTimeout(function () { if (!st.alive && box.isConnected) mode('gone'); }, 4000);
+  }
   var prevClose = S.afterClose;
-  S.afterClose = function () { window.removeEventListener('message', onMsg); clearTimeout(st.timer); S.boomStart = null; if (prevClose) prevClose(); };
+  S.afterClose = function () { window.removeEventListener('message', onMsg); if (onBlur) window.removeEventListener('blur', onBlur); clearTimeout(st.timer); S.boomStart = null; if (prevClose) prevClose(); };
   // если плеер так и не заговорил с нами, отметку о просмотре ставит сам ученик
   setTimeout(function () {
     if (st.alive || !box.isConnected) return;
