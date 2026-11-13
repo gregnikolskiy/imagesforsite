@@ -23,6 +23,12 @@ var CONFIG = {
   ORIGIN_IMAGE: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/origin.jpg',
   // Картинка в шапке окна «Как работает прокачка»
   GUIDE_IMAGE: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/guide.jpg',
+  // папка с обложками уроков (в уроке поле cover: 'w1-1.jpg')
+  LESSON_BASE: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lessons/',
+  // куда ведёт кнопка «Забрать в чате» у нового скилла; пусто: в чат потока
+  SKILLS_URL: 'https://t.me/c/3987431320/2',
+  // картинки ачивок: квадратные, рамку и свечение рисует страница
+  ACH_IMAGES: { pioneer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/ach-pioneer.jpg' },
   // Музыка на время создания персонажа. Пусто = встроенный синтезаторный трек.
   // Можно вставить ссылку на mp3 с бесплатной лицензией.
   MUSIC_URL: ''
@@ -50,7 +56,8 @@ var QUESTS = [
     task: 'Открой правила прокачки и узнай, как растёт твой персонаж. Квест засчитается сам, как только дочитаешь.' },
   { id: 'q0', tag: 'День 0', title: 'Выход в сеть', lvl: 5, proof: 'file',
     task: 'Представься в чате потока: как тебя зовут, чем занимаешься и какой класс выбрал. Сделай скриншот своего сообщения и прикрепи его сюда.' },
-  { id: 'q1', tag: 'Неделя 1', title: 'Анализ проекта', lvl: 10, proof: 'any',
+  { id: 'q1', tag: 'Неделя 1', title: 'Анализ проекта', lvl: 10, proof: 'links',
+    links: [{ key: 'ca', label: 'Анализ ЦА' }, { key: 'comp', label: 'Анализ конкурентов' }, { key: 'utp', label: 'УТП' }],
     task: 'Комплект аналитики по своему проекту в Notion: ЦА, конкуренты и УТП.' },
   { id: 'q2', tag: 'Неделя 2', lvl: 20, proof: 'any', byClass: {
     packer:     { title: 'Сайты и презентации с ИИ', task: 'Прототип и дизайн сайта или презентации с ИИ.' },
@@ -140,12 +147,14 @@ var root = document.getElementById('ug-root');
 var stage = root.querySelector('.ug-stage');
 
 var store = (function () {
+  // тестовая страница в демо-режиме на боевом домене не должна трогать данные настоящего профиля
+  var P = DEMO && /gregnikolskiy/.test(location.hostname) ? 'demo_' : '';
   var mem = {}, ok = false;
   try { localStorage.setItem('__ug', '1'); localStorage.removeItem('__ug'); ok = true; } catch (e) {}
   return {
-    get: function (k) { try { return ok ? localStorage.getItem(k) : (k in mem ? mem[k] : null); } catch (e) { return mem[k] || null; } },
-    set: function (k, v) { try { if (ok) localStorage.setItem(k, v); else mem[k] = v; } catch (e) { mem[k] = v; } },
-    del: function (k) { try { if (ok) localStorage.removeItem(k); else delete mem[k]; } catch (e) { delete mem[k]; } }
+    get: function (k) { k = P + k; try { return ok ? localStorage.getItem(k) : (k in mem ? mem[k] : null); } catch (e) { return mem[k] || null; } },
+    set: function (k, v) { k = P + k; try { if (ok) localStorage.setItem(k, v); else mem[k] = v; } catch (e) { mem[k] = v; } },
+    del: function (k) { k = P + k; try { if (ok) localStorage.removeItem(k); else delete mem[k]; } catch (e) { delete mem[k]; } }
   };
 })();
 
@@ -169,6 +178,14 @@ function setHash(nick) {
 }
 
 var ICONS = {
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  play: '<path d="M7.2 5.5l10.6 6.5-10.6 6.5z"/>',
+  clip: '<path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6"/>',
+  download: '<path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/>',
+  external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/>',
+  doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   lock: '<path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="5" y="11" width="14" height="10" rx="1"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   hourglass: '<path d="M7 3h10M7 21h10M8 3c0 5 8 6 8 9s-8 4-8 9M16 3c0 5-8 6-8 9s8 4 8 9"/>',
@@ -257,19 +274,32 @@ var demoDb = {
   load: function () {
     var db = null;
     try { db = JSON.parse(store.get('ug_demo_db')); } catch (e) {}
-    if (!db) { db = { players: {}, settings: defaultSettings() }; this.save(db); }
+    if (!db) { db = { players: {}, settings: defaultSettings() }; }
+    // демо идёт как настоящий поток: первая неделя уже открыта, чтобы были видны уроки
+    if (db.v !== 2) { db.v = 2; if (db.settings.q1) db.settings.q1.open = true; this.save(db); }
     return db;
   },
   save: function (db) { store.set('ug_demo_db', JSON.stringify(db)); },
   view: function (p) {
     var sheet = {};
     SHEET_FIELDS.forEach(function (f) { if (!f.priv) sheet[f.key] = p.sheet[f.key] || ''; });
-    return { nick: p.nick, gender: p.gender, 'class': p['class'], quests: Object.assign({}, p.quests), sheet: sheet, pet: p.pet || '', weapon: p.weapon || '', seen: (p.seen || []).slice() };
+    return { nick: p.nick, gender: p.gender, 'class': p['class'], quests: Object.assign({}, p.quests), sheet: sheet, pet: p.pet || '', weapon: p.weapon || '', seen: (p.seen || []).slice(), pinSet: !!p.pin, lessons: (p.lessons || []).slice(), achievements: (p.achievements || []).slice() };
   }
 };
-function demoGet(nick) {
+function demoAuth(p, pin) {
+  if (!p.pin) return '';
+  if ((p.fails || 0) >= 3) return 'pin_locked';
+  if (!pin) return 'pin_required';
+  if (String(pin) === p.pin) { p.fails = 0; return ''; }
+  p.fails = (p.fails || 0) + 1;
+  return p.fails >= 3 ? 'pin_locked' : 'pin_wrong';
+}
+function demoGet(nick, pin) {
   var db = demoDb.load(), p = db.players[nick];
-  return p ? { ok: true, exists: true, player: demoDb.view(p), settings: db.settings } : { ok: true, exists: false, settings: db.settings };
+  if (!p) return { ok: true, exists: false, allowed: true, settings: db.settings };
+  var bad = demoAuth(p, pin); demoDb.save(db);
+  if (bad) return { ok: true, exists: true, needPin: true, error: bad, left: 3 - (p.fails || 0), settings: db.settings };
+  return { ok: true, exists: true, player: demoDb.view(p), settings: db.settings };
 }
 function demoPost(b) {
   var db = demoDb.load(), nick = normNick(b.nick);
@@ -278,6 +308,20 @@ function demoPost(b) {
     db.players[nick] = { nick: nick, gender: b.gender, 'class': b['class'], sheet: b.sheet || {}, quests: {}, pet: '' };
     demoDb.save(db);
     return { ok: true, player: demoDb.view(db.players[nick]), settings: db.settings };
+  }
+  if (b.action === 'setpin') {
+    var pp = db.players[nick]; if (!pp) return { ok: false, error: 'no_player' };
+    if (pp.pin) return { ok: false, error: 'pin_exists' };
+    if (!/^\d{4}$/.test(String(b.pin || ''))) return { ok: false, error: 'bad_pin' };
+    if (PIN_BANNED.indexOf(String(b.pin)) >= 0) return { ok: false, error: 'pin_easy' };
+    pp.pin = String(b.pin); demoDb.save(db);
+    return { ok: true, player: demoDb.view(pp), settings: db.settings };
+  }
+  if (db.players[nick]) { var bd = demoAuth(db.players[nick], b.pin); demoDb.save(db); if (bd) return { ok: false, needPin: true, error: bd }; db = demoDb.load(); }
+  if (b.action === 'lesson') {
+    var pl = db.players[nick]; if (!pl) return { ok: false, error: 'no_player' };
+    pl.lessons = pl.lessons || []; if (pl.lessons.indexOf(b.lesson) < 0) pl.lessons.push(b.lesson);
+    demoDb.save(db); return { ok: true, player: demoDb.view(pl), settings: db.settings };
   }
   if (b.action === 'seen') {
     var pz = db.players[nick]; if (!pz) return { ok: false, error: 'no_player' };
@@ -299,15 +343,24 @@ function demoPost(b) {
   return { ok: false, error: 'unknown_action' };
 }
 
-function apiGet(nick) {
-  if (DEMO) return sleep(300).then(function () { return demoGet(nick); });
-  return fetch(CONFIG.API_URL + '?action=get&nick=' + encodeURIComponent(nick) + '&t=' + Date.now())
+// ПИН хранится в браузере отдельно для каждого ника и уходит с каждым запросом в теле, не в адресе
+function savedPin(nick) { return store.get('ug_pin_' + nick) || ''; }
+function apiGet(nick, pin) {
+  if (pin === undefined) pin = savedPin(nick);
+  if (DEMO) return sleep(300).then(function () { return demoGet(nick, pin); });
+  return fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'get', nick: nick, pin: pin }) })
     .then(function (r) { return r.json(); });
 }
 function apiPost(body) {
-  if (DEMO) return sleep(700).then(function () { return demoPost(body); });
-  return fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
-    .then(function (r) { return r.json(); });
+  if (body.nick && body.pin === undefined) body.pin = savedPin(normNick(body.nick));
+  var req = DEMO ? sleep(700).then(function () { return demoPost(body); })
+    : fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); });
+  return req.then(function (res) {
+    // ПИН сменили или сбросили, пока профиль был открыт: просим ввести заново
+    if (res && res.needPin && S.nick) { store.del('ug_pin_' + S.nick); setTimeout(function () { closeModal(); screenPin(S.nick, res.error); }, 0); }
+    return res;
+  });
 }
 
 /* ================= СОСТОЯНИЕ ================= */
@@ -326,7 +379,7 @@ function lvlGain(id) {
   return gain;
 }
 function questView(q) {
-  var c = clsKey(), v = { id: q.id, tag: q.tag, title: q.title, task: q.task, lvl: q.lvl, proof: q.proof, boss: q.boss };
+  var c = clsKey(), v = { id: q.id, tag: q.tag, title: q.title, task: q.task, lvl: q.lvl, proof: q.proof, boss: q.boss, links: q.links };
   if (q.byClass) { var b = q.byClass[c] || q.byClass.packer; v.title = b.title; v.task = b.task; }
   return v;
 }
@@ -632,8 +685,16 @@ var music = (function () {
   }
   // музыка на мгновение приседает, чтобы звук нажатия был слышен поверх неё
   var switching = false;
+  var held = false;
+  // пауза музыки на время видеоурока
+  function hold(on) {
+    held = on;
+    if (!playing || muted) return;
+    if (audioEl) { if (on) fadeTo(0, 0.4); else { audioEl.play().catch(function () {}); fadeTo(0.5, 1); } return; }
+    if (ctx) fadeTo(on ? 0 : VOL, on ? 0.5 : 1.2);
+  }
   function duck(t) {
-    if (!out || !playing || muted || switching || audioEl) return;
+    if (!out || !playing || muted || switching || audioEl || held) return;
     var g = out.gain;
     g.cancelScheduledValues(t); g.setValueAtTime(VOL, t);
     g.linearRampToValueAtTime(VOL * 0.45, t + 0.03); g.linearRampToValueAtTime(VOL, t + 0.45);
@@ -666,6 +727,19 @@ var music = (function () {
       [880, 1108.7, 1318.5, 1760].forEach(function (f) { tone(f, f * 1.004, t + 0.42, 1.8, 0.03, 'sine', true); });
       tone(130, 55, t + 0.4, 0.5, 0.4, 'sine');
       tick(t + 0.4, 8000, 0.3, 0.1, 0.8);
+      return;
+    }
+    if (kind === 'anvil') {         // ачивку прибили к доске: удар по металлу и звон
+      tone(150, 52, t, 0.32, 0.65, 'sine');
+      tick(t, 2600, 0.09, 0.9, 0.7);
+      tick(t, 6500, 0.05, 0.5, 1.2);
+      [[612, 1.9, 0.11], [1689, 1.3, 0.075], [3302, 0.85, 0.05], [5460, 0.5, 0.03]].forEach(function (p) {
+        tone(p[0], p[0], t + 0.002, p[1], p[2], 'sine', true);
+        tone(p[0] * 1.004, p[0] * 1.004, t + 0.002, p[1] * 0.8, p[2] * 0.6, 'sine', true);
+      });
+      // отскок молотка: второй удар тише
+      tick(t + 0.16, 3000, 0.05, 0.35, 0.9);
+      [[612, 0.9, 0.04], [1689, 0.6, 0.03]].forEach(function (p) { tone(p[0], p[0], t + 0.16, p[1], p[2], 'sine', true); });
       return;
     }
     if (kind === 'achieve') {       // ачивка: широкое сияние
@@ -703,7 +777,7 @@ var music = (function () {
     return 'data:audio/wav;base64,' + btoa(b);
   }
   function running() { return !!ctx && ctx.state === 'running'; }
-  return { start: start, stop: stop, toggle: toggle, sfx: sfx, prime: prime, running: running, showBtn: function () { btn(true); }, isPlaying: function () { return playing; } };
+  return { start: start, stop: stop, toggle: toggle, sfx: sfx, prime: prime, running: running, hold: hold, showBtn: function () { btn(true); }, isPlaying: function () { return playing; } };
 })();
 var ICONS_SND = {
   on: '<svg class="ug-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
@@ -773,6 +847,7 @@ function screenLoading(nick) {
     '<div class="ug-load"><div class="ug-load-row mono"><span>Загрузка профиля</span><span>@' + esc(nick) + '</span></div><div class="ug-load-bar"><i class="is-run"></i></div></div></div></div>');
   apiGet(nick).then(function (res) {
     if (res && res.settings) S.settings = res.settings;
+    if (res && res.ok && res.exists && res.needPin) { screenPin(nick, res.error); return; }
     if (res && res.ok && res.exists) { S.player = res.player; remember(res.player.nick); screenDash(); return; }
     screenLogin(nick);
   }).catch(function () { screenLogin(nick, 'Нет связи. Проверь интернет и попробуй ещё раз.'); });
@@ -807,6 +882,134 @@ function screenLogin(prefill, err) {
   if (inp && window.matchMedia('(min-width:761px)').matches) inp.focus();
 }
 
+/* ---------- ПИН-код ---------- */
+var NOT_ALLOWED = function (nick) { return 'Ника @' + nick + ' нет в списке участников потока. Проверь, что вводишь свой ник из Telegram, или напиши Грише @gregnikol.'; };
+var PIN_ERR = {
+  pin_wrong: 'Неверный ПИН-код.',
+  pin_locked: 'Извини, доступ заблокирован. Напиши Грише @gregnikol, он поможет его вернуть.',
+  pin_required: ''
+};
+var PIN_BANNED = ['1234', '4321'];
+var PIN_EASY = 'Это слишком лёгкий ПИН, камон))';
+function pinInput() {
+  return '<label class="ug-field ug-pin-field"><input name="pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0000" spellcheck="false"></label>';
+}
+function readPin(scope) {
+  var inp = scope.querySelector('input[name=pin]');
+  return inp ? inp.value.replace(/\D/g, '').slice(0, 4) : '';
+}
+// вход на новом устройстве: ник есть, ПИН нужен
+function screenPin(nick, error, left) {
+  S.screen = 'login';
+  root.querySelectorAll('.ug-modal').forEach(function (m) { m.remove(); });
+  var msg = PIN_ERR[error] || '';
+  if (error === 'pin_wrong' && left > 0) msg += ' Осталось попыток: ' + left + '.';
+  if (error === 'pin_locked') {
+    show(
+      '<div class="' + (CONFIG.CITY_IMAGE ? 'ug-boot has-img is-left' : 'ug-narrow') + '">' +
+        '<div class="ug-logo-word ug-login-logo">АПГРЕЙД</div>' +
+        '<div class="ug-kicker">// идентификация · @' + esc(nick) + '</div>' +
+        '<h2 class="ug-h2">Доступ заблокирован</h2>' +
+        '<p class="ug-p">' + esc(PIN_ERR.pin_locked) + '</p>' +
+        '<div style="margin-top:22px"><button class="ug-link" type="button" data-act="relogin">← Другой ник</button></div>' +
+      '</div>', { world: 'city' });
+    return;
+  }
+  show(
+    '<div class="' + (CONFIG.CITY_IMAGE ? 'ug-boot has-img is-left' : 'ug-narrow') + '">' +
+      '<div class="ug-logo-word ug-login-logo">АПГРЕЙД</div>' +
+      '<div class="ug-kicker">// идентификация · @' + esc(nick) + '</div>' +
+      '<h2 class="ug-h2">Введи ПИН-код</h2>' +
+      '<p class="ug-p">Четыре цифры, которые защищают твой профиль. На этом устройстве их нужно ввести один раз.</p>' +
+      '<form class="ug-form" data-form="pin" data-nick="' + esc(nick) + '" style="margin-top:26px;width:100%;max-width:460px" novalidate>' +
+        pinInput() +
+        '<div class="ug-hint">Забыл ПИН? Напиши Грише @gregnikol, он сбросит его, и ты придумаешь новый.</div>' +
+        '<div class="ug-err">' + esc(msg) + '</div>' +
+        '<button class="ug-btn is-wide" type="button" data-act="pin-go">Войти</button>' +
+        '<div style="margin-top:16px"><button class="ug-link" type="button" data-act="relogin">← Другой ник</button></div>' +
+      '</form>' +
+    '</div>', { world: 'city' });
+  var inp = root.querySelector('input[name=pin]');
+  if (inp) inp.focus();
+}
+function submitPin(form) {
+  var nick = form.getAttribute('data-nick'), pin = readPin(form), err = form.querySelector('.ug-err'), btn = form.querySelector('[data-act=pin-go]');
+  if (pin.length !== 4) { err.textContent = 'ПИН-код состоит из четырёх цифр.'; return; }
+  btn.classList.add('is-loading');
+  apiGet(nick, pin).then(function (res) {
+    btn.classList.remove('is-loading');
+    if (!res || !res.ok) { err.textContent = 'Не получилось связаться с сервером. Попробуй ещё раз.'; return; }
+    if (res.settings) S.settings = res.settings;
+    if (res.needPin && res.error === 'pin_locked') { screenPin(nick, 'pin_locked'); return; }
+    if (res.needPin) {
+      var msg = PIN_ERR[res.error] || 'Неверный ПИН-код.';
+      if (res.error === 'pin_wrong' && res.left > 0) msg += ' Осталось попыток: ' + res.left + '.';
+      err.textContent = msg; form.querySelector('.ug-field').classList.add('is-bad');
+      var i = form.querySelector('input[name=pin]'); i.value = ''; i.focus();
+      return;
+    }
+    if (!res.exists) { screenLogin(nick); return; }
+    store.set('ug_pin_' + nick, pin);
+    S.player = res.player; remember(nick); S.screen = 'dash';
+    if (store.get('ug_muted') !== '1') music.start('epic');
+    screenDash();
+  }).catch(function () { btn.classList.remove('is-loading'); err.textContent = 'Нет связи. Проверь интернет и попробуй ещё раз.'; });
+}
+// придумать ПИН: окно поверх профиля, закрыть его нельзя, пока ПИН не сохранён
+function pinSetupModal(then) {
+  closeModal();
+  var m = document.createElement('div');
+  m.className = 'ug-modal is-locked';
+  root.appendChild(m);
+  S.afterPin = then;
+  pinSetupStep(m, 1, '');
+}
+// шаг 1: придумать, шаг 2: повторить
+function pinSetupStep(m, step, error) {
+  S.pinFirst = step === 1 ? '' : S.pinFirst;
+  m.innerHTML = '<div class="ug-dialog ug-pin-dialog" role="dialog" aria-modal="true">' +
+    '<div class="ug-pin-ico">' + ico('lock') + '</div>' +
+    '<div class="ug-kicker">// защита персонажа · шаг ' + step + ' из 2</div>' +
+    (step === 1
+      ? '<h2 class="ug-h2">Придумай ПИН-код</h2>' +
+        '<p class="ug-p">Четыре цифры, чтобы в профиль не зашёл никто другой. На этом устройстве вводить их не придётся. Они понадобятся, когда откроешь профиль с телефона или другого компьютера.</p>'
+      : '<h2 class="ug-h2">Повтори ПИН-код</h2>' +
+        '<p class="ug-p">Введи те же четыре цифры ещё раз, чтобы не ошибиться.</p>') +
+    '<form data-form="pin-set" novalidate>' + pinInput() +
+      '<div class="ug-err">' + esc(error || '') + '</div>' +
+      '<button class="ug-btn is-wide" type="button" data-act="pin-save">' + (step === 1 ? 'Дальше' : 'Сохранить ПИН') + '</button>' +
+    '</form></div>';
+  if (error) m.querySelector('.ug-field').classList.add('is-bad');
+  var inp = m.querySelector('input[name=pin]');
+  setTimeout(function () { if (inp) inp.focus(); }, 50);
+}
+function savePin(form) {
+  var pin = readPin(form), err = form.querySelector('.ug-err'), btn = form.querySelector('[data-act=pin-save]');
+  var m = form.closest('.ug-modal');
+  if (pin.length !== 4) { err.textContent = 'Нужно ровно четыре цифры.'; form.querySelector('.ug-field').classList.add('is-bad'); return; }
+  if (!S.pinFirst) {
+    if (PIN_BANNED.indexOf(pin) >= 0) { err.textContent = PIN_EASY; form.querySelector('.ug-field').classList.add('is-bad'); form.querySelector('input[name=pin]').value = ''; return; }
+    S.pinFirst = pin; music.sfx('tick'); pinSetupStep(m, 2, ''); return;
+  }
+  if (pin !== S.pinFirst) { pinSetupStep(m, 1, 'ПИН-коды не совпали. Придумай ПИН заново.'); return; }
+  btn.classList.add('is-loading');
+  apiPost({ action: 'setpin', nick: S.nick, pin: pin }).then(function (res) {
+    btn.classList.remove('is-loading');
+    if (res && res.ok) {
+      store.set('ug_pin_' + S.nick, pin);
+      S.player = res.player; if (res.settings) S.settings = res.settings;
+      var m = root.querySelector('.ug-modal.is-locked'); if (m) m.remove();
+      music.sfx('confirm');
+      achievement('ПИН-код сохранён · ' + pin);
+      var fn = S.afterPin; S.afterPin = null; if (fn) setTimeout(fn, 400);
+      return;
+    }
+    if (res && res.error === 'pin_exists') { store.del('ug_pin_' + S.nick); screenPin(S.nick); return; }
+    if (res && res.error === 'pin_easy') { pinSetupStep(m, 1, PIN_EASY); return; }
+    err.textContent = 'Не получилось сохранить. Попробуй ещё раз.';
+  }).catch(function () { btn.classList.remove('is-loading'); err.textContent = 'Нет связи. Проверь интернет и попробуй ещё раз.'; });
+}
+
 /* ---------- лор ---------- */
 function screenLore() {
   show(
@@ -826,7 +1029,9 @@ function submitLogin(form) {
     btn.classList.remove('is-loading');
     if (!res || !res.ok) { err.textContent = 'Не получилось связаться с сервером. Попробуй ещё раз.'; return; }
     if (res.settings) S.settings = res.settings;
+    if (res.exists && res.needPin) { screenPin(nick, res.error); return; }
     if (res.exists) { S.player = res.player; remember(nick); S.screen = 'dash'; if (store.get('ug_muted') !== '1') music.start('epic'); screenDash(); return; }
+    if (res.allowed === false) { err.textContent = NOT_ALLOWED(nick); return; }
     S.draft = { nick: nick };
     S.screen = 'lore';
     music.start('epic');
@@ -1081,6 +1286,7 @@ function createPlayer() {
         screenCreated();
         return;
       }
+      if (res && res.error === 'not_allowed') { reset(NOT_ALLOWED(S.draft.nick)); return; }
       reset(res && res.error === 'nick_taken'
         ? 'Персонаж с ником @' + S.draft.nick + ' уже существует. Нажми «Сменить игрока» или войди под этим ником.'
         : 'Не получилось создать персонажа. Попробуй ещё раз.');
@@ -1134,6 +1340,10 @@ function screenDash() {
   var k = clsKey(), g = genKey(), c = CLASSES[k] || CLASSES.packer, lvl = level();
   // с какого уровня анимировать: после создания персонажа с нуля, после засчитанного квеста с прошлого значения
   var seenBefore = seenIds();
+  // уроки открываются после первых квестов; панель всегда наверху, в момент открытия она подсвечивается
+  var lessonsReveal = lessonsUnlocked() && seenBefore.indexOf('ach:lessons-open') < 0;
+  // ачивки, которые игрок ещё не видел: их слоты пустые, пока значок не прилетит
+  var achFresh = myAchievements().filter(function (a) { return seenBefore.indexOf('ach:' + a.id) < 0; }).map(function (a) { return a.id; });
   var fromLvl = S.justCreated ? 0 : Math.min(lvl, levelOf(seenBefore));
   if (S.autoAnim) { var aid = S.autoAnim; S.autoAnim = null; fromLvl = Math.min(fromLvl, levelOf(seenBefore.filter(function (id) { return id !== aid; }))); }
   var segs = '', caps = '';
@@ -1185,13 +1395,7 @@ function screenDash() {
   }).join('');
 
   // пока без названий: по одному закрытому слоту на неделю, названия скиллов появятся позже
-  var items = SKILL_SLOTS.map(function (w, si) {
-    var open = S.settings[w] && S.settings[w].open;
-    var tag = QUESTS.filter(function (q) { return q.id === w; })[0].tag;
-    return '<div class="ug-item ' + (open ? 'is-open' : 'is-locked') + '" data-act="skill-info" data-i="' + si + '">' +
-      '<div class="ug-item-ico">' + ico(open ? 'chip' : 'lock') + '</div>' +
-      '<div><div class="ug-item-name">' + (open ? 'Новый скилл' : 'Скрытый скилл') + '</div><div class="ug-item-meta">' + (open ? 'открыт' : esc(tag.toLowerCase())) + '</div></div></div>';
-  }).join('');
+  var items = SKILL_SLOTS.map(skillItem).join('');
 
   var sheet = (S.player && S.player.sheet) || {};
   var stats = QUIZ.map(function (q) {
@@ -1213,36 +1417,44 @@ function screenDash() {
       '<button class="ug-link" data-act="logout">' + ico('swap') + 'Сменить игрока</button></header>' +
       '<div class="ug-dash">' +
         '<aside class="ug-hero">' +
-          '<div class="ug-hero-img" data-act="poke" title="Нажми на персонажа">' + avatar(g, k, lvl) + '<div class="ug-frame"></div><div class="ug-bubble" id="ug-bubble"></div></div>' +
+          '<div class="ug-hero-img" data-act="poke" title="Нажми на персонажа">' + avatar(g, k, lvl) + '<div class="ug-frame"></div><div class="ug-bubble" id="ug-bubble"></div>' +
+            // уровень лежит поверх нижней части портрета, чтобы доска достижений помещалась в экран
+            '<div class="ug-level is-over" id="ug-level"><div class="ug-level-row"><div class="ug-level-num"><span id="ug-lvl-n">' + fromLvl + '</span><small>/ ' + MAX_LVL + '</small></div><div class="ug-level-lbl">УРОВЕНЬ</div></div>' +
+            '<div class="ug-segs" id="ug-segs">' + segs + '</div><div class="ug-segs-cap mono">' + caps + '</div></div></div>' +
           '<div class="ug-hero-tag"><div class="ug-hero-nick">@' + esc(S.nick) + '</div><div class="ug-classbadge">' + c.name + '</div></div>' +
-          '<div class="ug-level" id="ug-level"><div class="ug-level-row"><div class="ug-level-num"><span id="ug-lvl-n">' + fromLvl + '</span><small>/ ' + MAX_LVL + '</small></div><div class="ug-level-lbl">УРОВЕНЬ</div></div>' +
-          '<div class="ug-segs" id="ug-segs">' + segs + '</div><div class="ug-segs-cap mono">' + caps + '</div></div>' +
-          '<button class="ug-btn is-ghost is-wide ug-origin-btn' + (questState('story') === 'done' ? '' : ' is-hint') + '" data-act="origin">' + ico('book') + 'История персонажа</button>' +
           '<div class="ug-loot">' + petCard() + weaponCard() + '</div>' +
+          boardHtml(achFresh) +
+          '<button class="ug-btn is-ghost is-wide ug-origin-btn' + (questState('story') === 'done' ? '' : ' is-hint') + '" data-act="origin">' + ico('book') + 'История персонажа</button>' +
         '</aside>' +
         '<div class="ug-col">' +
-          activeHtml +
+          lessonsPanel() + '<div id="ug-activebox">' + activeHtml + '</div>' +
           '<section class="ug-panel"><div class="ug-panel-h"><div class="ug-panel-t">Журнал квестов</div><div class="ug-panel-t">' +
             (QUESTS.filter(function (q) { return questState(q.id) === 'done'; }).length + 1) + ' / ' + (QUESTS.length + 1) + '</div></div>' +
             '<div class="ug-log-list">' + rows + '</div></section>' +
-          '<section class="ug-panel"><div class="ug-panel-h"><div class="ug-panel-t">Инвентарь · ИИ-скиллы</div></div><div class="ug-inv">' + items + '</div></section>' +
+          '<section class="ug-panel" id="ug-inv-panel"><div class="ug-panel-h"><div class="ug-panel-t">Инвентарь · ИИ-скиллы</div></div><div class="ug-inv">' + items + '</div></section>' +
           '<section class="ug-panel"><div class="ug-panel-h"><div class="ug-panel-t">Характеристики · скан «до»</div></div>' +
             '<div class="ug-stats">' + stats + '</div>' +
             '<div class="ug-after">' + ico('lock') + '<span>Скан «после» откроется перед демо-днём. Тогда и сравним, насколько прокачался персонаж.</span></div></section>' +
-            '<section class="ug-panel"><div class="ug-panel-h"><div class="ug-panel-t">Личная ссылка</div></div>' +
-              '<div class="ug-linkbox" style="margin:0"><code>' + esc(personalLink(S.nick)) + '</code><button data-act="copy-link">' + ico('copy') + '</button></div>' +
-              '<div class="ug-hint">Открывает профиль на любом устройстве.</div></section>' +
+
         '</div>' +
       '</div>' +
     '</div>', { dash: true, acc: c.color });
 
-  var modalOpened = celebrateNew(seenBefore);
-  var created = S.justCreated;
-  if (created) { S.justCreated = false; setTimeout(function () { achievement('Создание персонажа · уровень ' + PROLOGUE_LVL); }, 700); }
-  if (fromLvl < lvl) {
-    var run = function () { animateLevel(fromLvl, lvl); };
-    if (modalOpened) S.afterClose = run; else setTimeout(run, created ? 1500 : 500);
-  }
+  hydrateThumbs();
+  if (lessonsReveal) waitCalm(revealLessons);
+  var effects = function () {
+    var modalOpened = celebrateNew(seenBefore);
+    var created = S.justCreated;
+    if (created) { S.justCreated = false; setTimeout(function () { achievement('Создание персонажа · уровень ' + PROLOGUE_LVL); }, 700); }
+    var levelUp = fromLvl < lvl;
+    var run = function () { if (levelUp) animateLevel(fromLvl, lvl); };
+    // после поздравлений с квестами и роста уровня вручаем новые ачивки по одной
+    var awards = function () { if (achFresh.length) setTimeout(function () { awardNext(achFresh.slice()); }, levelUp ? 1600 : 500); };
+    if (modalOpened) S.afterClose = function () { run(); awards(); };
+    else setTimeout(function () { run(); awards(); }, levelUp ? (created ? 1500 : 500) : (created ? 2600 : 300));
+  };
+  // у игрока ещё нет ПИН-кода: сначала просим его придумать, праздник потом
+  if (S.player && S.player.pinSet === false) pinSetupModal(effects); else effects();
 }
 
 function petCard() {
@@ -1333,15 +1545,47 @@ function questInfo(id) {
      st === 'active' || st === 'rework' ? '<div class="ug-dialog-actions"><button class="ug-btn" data-act="quest" data-q="' + id + '">Сдать квест</button></div>' : ''));
 }
 var SKILL_SLOTS = ['q1', 'q2', 'q3', 'q4'];
+// скиллы недель; пока у недели нет описания, в инвентаре она показана как «новый скилл»
+var SKILLS = {
+  q1: { name: 'Аналитика Никольского v.2', desc: 'По брифу клиента собирает в Notion три документа: анализ ЦА, анализ конкурентов и УТП.' }
+};
+// «новый» скилл: неделя открыта, а игрок его ещё не открывал (отметка skill-… хранится вместе с ачивками)
+// скилл первой недели открывается вместе с уроками
+function skillOpen(w) { return weekOpen(w) && (w !== 'q1' || lessonsUnlocked()); }
+function skillFresh(w) { return !!SKILLS[w] && skillOpen(w) && seenIds().indexOf('ach:skill-' + w) < 0; }
+function skillItem(w, si) {
+  var open = skillOpen(w), sk = SKILLS[w], fresh = skillFresh(w);
+  var tag = QUESTS.filter(function (q) { return q.id === w; })[0].tag;
+  var name = !open ? 'Скрытый скилл' : fresh ? 'Новый скилл' : sk ? sk.name : 'Новый скилл';
+  var meta = !open ? esc(tag.toLowerCase()) : fresh ? 'нажми, чтобы забрать' : '';
+  return '<div class="ug-item ' + (open ? 'is-open' : 'is-locked') + (fresh ? ' is-new' : '') + (open && sk && !fresh ? ' is-mine' : '') + '" data-act="skill-info" data-i="' + si + '">' +
+    (fresh ? '<span class="ug-item-new">новый</span>' : '') +
+    '<div class="ug-item-ico">' + ico(open ? 'chip' : 'lock') + '</div>' +
+    '<div><div class="ug-item-name">' + esc(name) + '</div>' + (meta ? '<div class="ug-item-meta">' + meta + '</div>' : '') + '</div></div>';
+}
 function skillInfo(i) {
   var w = SKILL_SLOTS[i]; if (!w) return;
-  var open = S.settings[w] && S.settings[w].open;
+  var open = skillOpen(w);
   var tag = QUESTS.filter(function (q) { return q.id === w; })[0].tag;
+  var sk = SKILLS[w];
+  if (open && sk) {
+    var fresh = skillFresh(w);
+    if (fresh) markSeen(seenIds().concat(['ach:skill-' + w]));
+    modal((fresh ? burst() : '<div class="ug-skill-ico">' + ico('chip') + '</div>') +
+      '<div class="ug-kicker">// ' + (fresh ? 'новый ИИ-скилл' : 'ИИ-скилл') + ' · ' + esc(tag.toLowerCase()) + '</div>' +
+      '<h2 class="ug-h2">' + esc(sk.name) + '</h2>' +
+      '<p class="ug-p">' + esc(sk.desc) + '</p>' +
+      '<div class="ug-q-state is-done" style="margin-top:18px">' + ico('chat') + '<span>Скилл ждёт тебя в чате «Апгрейда». Как его установить, рассказываю в уроке.</span></div>' +
+      '<div class="ug-dialog-actions"><a class="ug-btn" href="' + esc(CONFIG.SKILLS_URL || CONFIG.CHAT_URL) + '" target="_blank" rel="noopener">Забрать в чате</a></div>',
+      null, fresh ? 'ug-congrats' : '');
+    if (fresh) { music.sfx('achieve'); var it = root.querySelectorAll('.ug-inv .ug-item')[i]; if (it) it.outerHTML = skillItem(w, i); }
+    return;
+  }
   modal('<div class="ug-kicker">// ИИ-скилл · ' + esc(tag.toLowerCase()) + '</div>' +
     '<h2 class="ug-h2">' + (open ? 'Новый скилл' : 'Скрытый скилл') + '</h2>' +
     '<p class="ug-p">Скилл — это набор файлов, которые подгружаешь в ИИ, и она обретает новый навык. Каждую неделю в инвентаре появляется новый.</p>' +
     '<div class="ug-q-state ' + (open ? 'is-done' : '') + '" style="margin-top:18px">' + ico(open ? 'chip' : 'lock') + '<span>' +
-      (open ? 'Скилл открыт. Файлы лежат в канале потока.' : 'Откроется: ' + esc(tag.toLowerCase()) + '.') + '</span></div>');
+      (open ? 'Скилл открыт. Файлы лежат в канале потока.' : w === 'q1' && weekOpen(w) ? 'Откроется вместе с уроками, после прохождения первых 4 квестов.' : 'Откроется: ' + esc(tag.toLowerCase()) + '.') + '</span></div>');
 }
 
 /* короткие квесты пролога засчитываются сами */
@@ -1384,11 +1628,11 @@ function combo() {
 }
 
 /* всплывающая ачивка, как в играх */
-function achievement(title) {
+function achievement(title, kicker) {
   var old = root.querySelector('.ug-ach'); if (old) old.remove();
   var a = document.createElement('div');
   a.className = 'ug-ach';
-  a.innerHTML = '<div class="ug-ach-ico">' + ico('check') + '</div><div><div class="ug-ach-k mono">Квест выполнен</div><div class="ug-ach-t">' + esc(title) + '</div></div>';
+  a.innerHTML = '<div class="ug-ach-ico">' + ico('check') + '</div><div><div class="ug-ach-k mono">' + esc(kicker || 'Квест выполнен') + '</div><div class="ug-ach-t">' + esc(title) + '</div></div>';
   root.appendChild(a);
   music.sfx('achieve');
   requestAnimationFrame(function () { a.classList.add('is-on'); });
@@ -1404,6 +1648,9 @@ function seenIds() {
   return local.concat(server.filter(function (id) { return local.indexOf(id) < 0; }));
 }
 function markSeen(ids) {
+  // отметки об ачивках (ach:…) живут в том же списке, их не теряем
+  var keep = seenIds().filter(function (id) { return id.indexOf('ach:') === 0 && ids.indexOf(id) < 0; });
+  ids = ids.concat(keep);
   store.set('ug_seen_' + S.nick, JSON.stringify(ids));
   if (S.player) S.player.seen = ids.slice();
   apiPost({ action: 'seen', nick: S.nick, seen: ids }).catch(function () {});
@@ -1427,6 +1674,405 @@ function celebrateNew(seen) {
     '<p class="ug-p">' + (q.lvl ? 'Гриша утвердил квест, и твой персонаж достиг уровня ' + level() + '.' : 'Гриша утвердил финальный квест. Игра пройдена.') + '</p>' +
     '<div class="ug-dialog-actions"><button class="ug-btn" data-act="close">Отлично</button></div>', null, 'ug-congrats');
   return true;
+}
+
+/* ---------- ачивки ---------- */
+// key: как Гриша пишет ачивку в колонке «ачивки» таблицы
+var ACHIEVEMENTS = [
+  { id: 'pioneer', key: 'первопроходец', title: 'Первопроходец', desc: 'За выполнение всех доступных квестов в первый день запуска «Апгрейда».' }
+];
+var BOARD_MIN = 4; // сколько ячеек на доске минимум, пустые закрыты замком
+function myAchievements() {
+  var got = ((S.player && S.player.achievements) || []).map(function (x) { return String(x).trim().toLowerCase(); });
+  return ACHIEVEMENTS.filter(function (a) { return got.indexOf(a.id) >= 0 || got.indexOf(a.key) >= 0; });
+}
+function achById(id) { return ACHIEVEMENTS.filter(function (a) { return a.id === id; })[0]; }
+// пиксельный восьмиугольник: углы срезаны ступеньками
+var OCT = (function () {
+  var c = 27, k = 6, tl = [];
+  for (var i = 0; i < k; i++) {
+    var x0 = c * i / k, x1 = c * (i + 1) / k, y0 = c - c * i / k, y1 = c - c * (i + 1) / k;
+    tl.push([x0, y0], [x0, y1]);
+    if (i === k - 1) tl.push([x1, y1]);
+  }
+  var pts = tl.concat(tl.slice().reverse().map(function (p) { return [100 - p[0], p[1]]; }),
+    tl.map(function (p) { return [100 - p[0], 100 - p[1]]; }), tl.slice().reverse().map(function (p) { return [p[0], 100 - p[1]]; }));
+  return 'polygon(' + pts.map(function (p) { return p[0].toFixed(2) + '% ' + p[1].toFixed(2) + '%'; }).join(',') + ')';
+})();
+root.style.setProperty('--oct', OCT);
+function badgeHtml(a, extra) {
+  var img = (CONFIG.ACH_IMAGES || {})[a.id];
+  return '<div class="ug-badge ' + (extra || '') + '"><div class="ug-badge-o"><div class="ug-badge-f"><div class="ug-badge-l">' +
+    (img ? '<img src="' + esc(img) + '" alt="" draggable="false">' : '<div class="ug-badge-ph">' + ico('star') + '</div>') +
+    '</div></div></div></div>';
+}
+function lockedBadge() {
+  return '<div class="ug-badge is-locked"><div class="ug-badge-o"><div class="ug-badge-f"><div class="ug-badge-l"><div class="ug-badge-ph">' + ico('lock') + '<b>?</b></div></div></div></div></div>';
+}
+function boardHtml(fresh) {
+  var mine = myAchievements(), cells = '';
+  mine.forEach(function (a) {
+    var pending = fresh.indexOf(a.id) >= 0;
+    cells += '<div class="ug-bslot' + (pending ? ' is-pending' : '') + '" data-ach="' + a.id + '" data-act="ach-info">' + (pending ? '' : badgeHtml(a)) + '</div>';
+  });
+  for (var i = mine.length; i < BOARD_MIN; i++) cells += '<div class="ug-bslot is-empty" data-act="ach-locked">' + lockedBadge() + '</div>';
+  return '<section class="ug-board" id="ug-board"><div class="ug-board-h"><span>Достижения</span><span class="mono">' + mine.length + '</span></div>' +
+    '<div class="ug-board-grid">' + cells + '</div></section>';
+}
+function achInfo(id) {
+  var a = achById(id); if (!a) return;
+  modal('<div class="ug-award-stage">' + badgeHtml(a, 'is-big') + '</div>' +
+    '<div class="ug-kicker">// достижение</div><h2 class="ug-h2">' + esc(a.title) + '</h2><p class="ug-p">' + esc(a.desc) + '</p>', '#ffd23f', 'ug-congrats ug-award');
+}
+// вручение: значок крупно, потом он улетает на доску и прибивается со звоном
+function awardNext(queue) {
+  var id = queue.shift(), a = achById(id);
+  if (!a) { if (queue.length) awardNext(queue); return; }
+  markSeen(seenIds().concat(['ach:' + id]));
+  S.awardQueue = queue;
+  modal('<div class="ug-award-stage"><div class="ug-award-rays"></div>' + badgeHtml(a, 'is-big is-new') + sparksHtml(14) + '</div>' +
+    '<div class="ug-kicker">// новое достижение</div>' +
+    '<h2 class="ug-h2">' + esc(a.title) + '</h2>' +
+    '<p class="ug-p">' + esc(a.desc) + '</p>' +
+    '<div class="ug-dialog-actions"><button class="ug-btn" data-act="ach-claim" data-ach="' + id + '">Прибить на доску</button></div>', '#ffd23f', 'ug-congrats ug-award');
+  music.sfx('achieve');
+  // закрыли крестиком или кликом мимо: значок встаёт на место без полёта
+  S.afterClose = function () { nailBadge(id, null); };
+}
+function sparksHtml(n, base) {
+  var h = '';
+  for (var i = 0; i < n; i++) {
+    var ang = (i / n) * Math.PI * 2, r = (base || 110) + (i % 3) * (base ? base * 0.3 : 30);
+    h += '<i class="ug-award-spark" style="--x:' + Math.round(Math.cos(ang) * r) + 'px;--y:' + Math.round(Math.sin(ang) * r) + 'px;animation-delay:' + (0.15 + (i % 4) * 0.05) + 's"></i>';
+  }
+  return h;
+}
+function claimAward(id) {
+  var big = root.querySelector('.ug-modal .ug-badge.is-big');
+  var from = big ? big.getBoundingClientRect() : null;
+  S.afterClose = null;
+  closeModal();
+  nailBadge(id, from);
+}
+function nailBadge(id, from) {
+  var a = achById(id), slot = root.querySelector('.ug-bslot[data-ach="' + id + '"]');
+  var next = function () { var q = S.awardQueue || []; S.awardQueue = null; if (q.length) setTimeout(function () { awardNext(q); }, 700); };
+  if (!a || !slot) { next(); return; }
+  var land = function () {
+    slot.classList.remove('is-pending');
+    slot.innerHTML = badgeHtml(a);
+    slot.classList.remove('is-slam'); void slot.offsetWidth; slot.classList.add('is-slam');
+    var board = root.querySelector('#ug-board');
+    if (board) { board.classList.remove('is-hit'); void board.offsetWidth; board.classList.add('is-hit'); }
+    var sp = document.createElement('div'); sp.className = 'ug-bslot-sparks'; sp.innerHTML = sparksHtml(10, 46); slot.appendChild(sp);
+    setTimeout(function () { sp.remove(); }, 1100);
+    music.sfx('anvil');
+    next();
+  };
+  // доска должна быть видна, иначе полёт уйдёт за экран
+  var r0 = slot.getBoundingClientRect(), vh = window.innerHeight || 800;
+  var needScroll = r0.top < 60 || r0.bottom > vh - 40;
+  if (needScroll) slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(function () {
+    if (!from || !slot.animate) { land(); return; }
+    var to = slot.getBoundingClientRect();
+    var fly = document.createElement('div');
+    fly.className = 'ug-fly';
+    fly.style.cssText = 'left:' + from.left + 'px;top:' + from.top + 'px;width:' + from.width + 'px;height:' + from.height + 'px';
+    fly.innerHTML = badgeHtml(a, 'is-big');
+    root.appendChild(fly);
+    var dx = to.left + to.width / 2 - (from.left + from.width / 2), dy = to.top + to.height / 2 - (from.top + from.height / 2);
+    var sc = to.width / from.width;
+    music.sfx('tick');
+    var anim = fly.animate([
+      { transform: 'translate(0,0) scale(1) rotate(0deg)', offset: 0 },
+      { transform: 'translate(0,-26px) scale(1.06) rotate(-6deg)', offset: 0.16 },
+      { transform: 'translate(' + dx * 0.45 + 'px,' + (dy * 0.45 - 140) + 'px) scale(' + (0.55 + sc * 0.45) + ') rotate(10deg)', offset: 0.55 },
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sc * 1.25 + ') rotate(-4deg)', offset: 0.9 },
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sc + ') rotate(0deg)', offset: 1 }
+    ], { duration: 950, easing: 'cubic-bezier(.45,.05,.35,1)', fill: 'forwards' });
+    anim.onfinish = function () { fly.remove(); land(); };
+  }, needScroll ? 520 : 60);
+}
+
+/* ---------- уроки ---------- */
+// уроки по неделям: ключ совпадает с квестом недели, неделя открывается той же галочкой в «Настройках».
+// video: ссылка Kinescope (kinescope.io/ID). Пока ссылки нет, урок показан как «скоро».
+var NOTION_HOWTO = [
+  'Как заполнять шаблон и вести в нём проект, базово написано внутри, а подробно я рассказываю в уроке.',
+  '1. Создайте аккаунт на notion.com, если его ещё нет (нужен VPN).',
+  '2. По желанию скачайте приложение Notion на компьютер, в нём удобнее, чем в браузере.',
+  '3. Откройте шаблон по кнопке выше.',
+  '4. В правом верхнем углу нажмите иконку из двух квадратиков «Дублировать» (Duplicate).',
+  '5. Выберите, в какой аккаунт добавить страницу. Готово, шаблон у вас.'
+];
+var LESSONS = {
+  q1: [
+    { id: 'w1-1', title: 'Как проходить первую неделю? Как она повлияет на ваш доход?', main: true, video: 'https://play.boomstream.net/B8vXYqdl?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:83d5aaa7946ee0f8209089360b084bad/bhQlQss0-a12.jpg' },
+    { id: 'w1-2', title: 'ИИ-скилл «Аналитика Никольского»', main: true, video: 'https://play.boomstream.net/3D5Dh9VE?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:162c1637898deb84e2b028b1f2cec730/jRYESYJx-a8.jpg',
+      note: { q: 'Где найти файл со скиллом?', a: 'Перейди в дашборд персонажа, в раздел «ИИ-скиллы». Скилл уже ждёт тебя там.', act: 'goto-skills', btn: 'Перейти к скиллу' } },
+    { id: 'w1-3', title: 'Как я брифую клиента?', video: 'https://play.boomstream.net/9DHUyXTj?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:8178bc4dffff289349c740a2623d388a/ggOdTkz0-a1.jpg',
+      materials: [{ type: 'notion', title: 'Шаблон брифа для Notion', url: 'https://gregnikolskiy.notion.site/395aca9943ab8051be3fe4ac2c29f92a' }, { type: 'gdoc', title: 'Шаблон брифа для Google Docs', url: 'https://docs.google.com/document/d/1qYwqZ2Wjlo7PXHZDvqzzAve3GtGWYqTT/edit' }] },
+    { id: 'w1-4', title: 'Как я делаю анализ ЦА?', video: 'https://play.boomstream.net/r7G31vvL?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:0d448a4df45c6cb6ac3d16413bfc3246/Sg89o6Il-a12.jpg' },
+    { id: 'w1-5', title: 'Как я анализирую конкурентов?', video: 'https://play.boomstream.net/3shHYmJ6?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:c719bd286f093f88eafa6ab7d239277e/nXRBv2pj-a15.jpg' },
+    { id: 'w1-6', title: 'Как я формирую УТП?', video: 'https://play.boomstream.net/wW9vLMRX?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:3d6934b164335d5a987c09075ec8981d/ewpsTKt6-a4.jpg' }
+  ],
+  q2: [], q3: [], q4: []
+};
+var WEEKS = ['q1', 'q2', 'q3', 'q4'];
+function weekOpen(w) { return !!(S.settings[w] && S.settings[w].open); }
+function watched(id) { return ((S.player && S.player.lessons) || []).indexOf(id) >= 0; }
+function lessonById(id) {
+  var r = null;
+  WEEKS.forEach(function (w) { (LESSONS[w] || []).forEach(function (l, i) { if (l.id === id) r = { l: l, w: w, n: i + 1 }; }); });
+  return r;
+}
+var LESSON_GATE = ['story', 'guide', 'q0'];
+// «Выход в сеть» достаточно сдать: проверка Гриши для уроков не нужна
+function lessonsUnlocked() { return LESSON_GATE.every(function (id) { var st = questState(id); return st === 'done' || (id === 'q0' && st === 'review'); }); }
+// ждём, пока закончатся поздравления и анимация уровня
+function waitCalm(fn) {
+  var t0 = Date.now(), quiet = 0;
+  var tick = function () {
+    if (!root.querySelector('.ug-modal') && !root.querySelector('.ug-fly')) quiet += 300; else quiet = 0;
+    if (quiet >= 1800 || Date.now() - t0 > 60000) { if (root.querySelector('#ug-lessons')) fn(); return; }
+    setTimeout(tick, 300);
+  };
+  setTimeout(tick, 300);
+}
+// уроки открылись: подсвечиваем панель и показываем плашку, ничего не двигаем
+function revealLessons() {
+  var les = root.querySelector('#ug-lessons');
+  if (!les) return;
+  markSeen(seenIds().concat(['ach:lessons-open']));
+  les.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  les.classList.remove('is-unlocked'); void les.offsetWidth; les.classList.add('is-unlocked');
+  music.sfx('achieve');
+  achievement('Уроки открыты', 'Новая возможность');
+}
+function lessonsPanel() {
+  if (!S.lessonWeek) {
+    // по умолчанию последняя открытая неделя, где есть уроки
+    S.lessonWeek = 'q1';
+    WEEKS.forEach(function (w) { if (weekOpen(w) && (LESSONS[w] || []).length) S.lessonWeek = w; });
+  }
+  return '<section class="ug-panel ug-lessons" id="ug-lessons">' + lessonsInner() + '</section>';
+}
+function lessonsInner() {
+  var w = S.lessonWeek, list = LESSONS[w] || [], open = weekOpen(w);
+  var tabs = WEEKS.map(function (x, i) {
+    return '<button class="ug-ltab' + (x === w ? ' is-on' : '') + (weekOpen(x) ? '' : ' is-locked') + '" data-act="lesson-week" data-w="' + x + '">' +
+      (weekOpen(x) ? '' : ico('lock')) + 'Неделя ' + (i + 1) + '</button>';
+  }).join('');
+  var done = list.filter(function (l) { return watched(l.id); }).length;
+  var body, gate = !lessonsUnlocked();
+  if (gate) body = '<div class="ug-lempty">' + ico('lock') + '<span>Уроки откроются после прохождения первых 4 квестов.</span></div>';
+  else if (!open) body = '<div class="ug-lempty">' + ico('lock') + '<span>Уроки этой недели откроются вместе с её квестом.</span></div>';
+  else if (!list.length) body = '<div class="ug-lempty">' + ico('hourglass') + '<span>Уроки этой недели скоро появятся.</span></div>';
+  else {
+    // ближайший непросмотренный урок по порядку крупнее остальных: с него и начинать
+    var next = -1;
+    list.forEach(function (l, i) { if (next < 0 && !watched(l.id)) next = i; });
+    body = list.map(function (l, i) {
+      var seen = watched(l.id), ready = !!l.video, isNext = i === next;
+      var meta = [];
+      var nf = (l.materials || []).filter(function (m) { return m.type === 'file'; }).length, nt = (l.materials || []).length - nf;
+      if (nf) meta.push(ico('clip') + (nf > 1 ? nf + ' файла' : 'файл'));
+      if (nt) meta.push(ico('clip') + (nt > 1 ? nt + ' шаблона' : 'шаблон'));
+      if (!ready) meta.push('видео скоро');
+      return '<div class="ug-lrow' + (seen ? ' is-seen' : '') + (isNext ? ' is-next' : '') + '" data-act="lesson" data-l="' + l.id + '">' +
+        lessonThumb(l, i) +
+        '<div class="ug-lbody">' + (isNext ? '<div class="ug-lnext">' + (done ? 'Следующий урок' : 'Начни с этого урока') + '</div>' : '') +
+          '<div class="ug-lt"><b>Урок ' + (i + 1) + '.</b> ' + esc(l.title) + '</div>' +
+          (meta.length ? '<div class="ug-lm">' + meta.join('<i class="ug-dot"></i>') + '</div>' : '') + '</div>' +
+        '<span class="ug-ltag' + (l.main ? ' is-main' : '') + '">' + (l.main ? 'главный' : 'по желанию') + '</span></div>';
+    }).join('');
+  }
+  return '<div class="ug-panel-h"><div class="ug-panel-t">Уроки</div>' +
+      (open && list.length && !gate ? '<div class="ug-panel-t">просмотрено ' + done + ' из ' + list.length + '</div>' : '') + '</div>' +
+    '<div class="ug-ltabs">' + tabs + '</div><div class="ug-llist">' + body + '</div>';
+}
+// миниатюра урока: картинка обложки, а пока её нет, фирменная заглушка с номером
+// обложка ищется сама: lessons/<номер урока>.jpg на GitHub, например lessons/w1-3.jpg
+// cover может быть ссылкой на миниатюру Boomstream (size:300): она лёгкая и идёт в список уроков,
+// а для экрана плеера берём полный размер, убрав из адреса пометку размера
+function coverUrl(l) {
+  if (l.cover === '') return '';
+  if (/^https?:\/\//.test(l.cover || '')) return l.cover;
+  return (CONFIG.LESSON_BASE || '') + (l.cover || l.id + '.jpg');
+}
+function coverFull(l) { return coverUrl(l).replace(/\/balancer\/size:\d+\/hash:[0-9a-f]+\//, '/balancer/'); }
+var coverOk = {};
+function lessonThumb(l, i) {
+  var img = coverUrl(l), ok = coverOk[img] === true;
+  return '<div class="ug-lthumb' + (ok ? ' has-img' : '') + '" data-cover="' + esc(img) + '"' + (ok ? ' style="background-image:url(\'' + esc(img) + '\')"' : '') + '>' +
+    '<span class="ug-lnum">' + (i < 9 ? '0' : '') + (i + 1) + '</span>' +
+    '<span class="ug-lico">' + ico(watched(l.id) ? 'check' : 'play') + '</span>' +
+    (l.dur ? '<span class="ug-ldur">' + esc(l.dur) + '</span>' : '') + '</div>';
+}
+function rerenderLessons() { var el = root.querySelector('#ug-lessons'); if (el) el.innerHTML = lessonsInner(); hydrateThumbs(); }
+// подставляем обложки, которые реально нашлись; где картинки нет, остаётся заглушка с номером
+function hydrateThumbs() {
+  root.querySelectorAll('.ug-lthumb[data-cover]').forEach(function (t) {
+    var url = t.getAttribute('data-cover'); if (!url) return;
+    var apply = function () { t.classList.add('has-img'); t.style.backgroundImage = 'url("' + url + '")'; };
+    if (coverOk[url] === true) { apply(); return; }
+    if (coverOk[url] === false) return;
+    var im = new Image();
+    im.onload = function () { coverOk[url] = true; apply(); };
+    im.onerror = function () { coverOk[url] = false; };
+    im.src = url;
+  });
+}
+// откуда видео: Kinescope (автоотметка о просмотре), Boomstream или любой другой iframe-плеер
+function videoSource(url) {
+  var u = String(url || '').trim();
+  var m = u.match(/(play\.boomstream\.(?:com|net))\/([A-Za-z0-9_-]+)(\?[^\s"'<>]*)?/);
+  if (m) return { type: 'boomstream', src: 'https://' + m[1] + '/' + m[2] + (m[3] || ''), code: m[2] };
+  if (/kinescope\.io/.test(u)) return { type: 'kinescope', id: kinescopeId(u) };
+  m = u.match(/src=["']([^"']+)["']/); // вставили целый код iframe
+  if (m) { var inner = videoSource(m[1]); return inner.type === 'kinescope' ? inner : { type: inner.type, src: m[1].replace(/&amp;/g, '&') }; }
+  if (/^https?:\/\//.test(u)) return { type: 'iframe', src: u };
+  return { type: 'kinescope', id: u };
+}
+function kinescopeId(url) {
+  var m = String(url || '').match(/kinescope\.io\/(?:embed\/|watch\/)?([A-Za-z0-9_-]+)/);
+  return m ? m[1] : String(url || '').trim();
+}
+var kinescopeReady = null;
+function loadKinescope() {
+  if (kinescopeReady) return kinescopeReady;
+  kinescopeReady = new Promise(function (resolve, reject) {
+    if (window.Kinescope && window.Kinescope.IframePlayer) { resolve(window.Kinescope.IframePlayer); return; }
+    var prev = window.onKinescopeIframeAPIReady;
+    window.onKinescopeIframeAPIReady = function (f) { if (prev) try { prev(f); } catch (e) {} resolve(f); };
+    var s = document.createElement('script');
+    s.src = 'https://player.kinescope.io/latest/iframe.player.js';
+    s.onerror = function () { kinescopeReady = null; reject(new Error('kinescope')); };
+    document.head.appendChild(s);
+    setTimeout(function () { reject(new Error('timeout')); }, 9000);
+  });
+  return kinescopeReady;
+}
+function materialHtml(m) {
+  var url = m.url || '';
+  if (m.type === 'gdoc' && url) url = url.replace(/\/(edit|view)[^/]*$/, '/copy');
+  var btn = url
+    ? '<a class="ug-btn is-ghost is-small" href="' + esc(url) + '" target="_blank" rel="noopener">' + ico(m.type === 'file' ? 'download' : 'external') +
+        (m.type === 'file' ? 'Скачать' : m.type === 'gdoc' ? 'Сделать копию' : 'Открыть шаблон') + '</a>'
+    : '<span class="ug-mat-soon">скоро</span>';
+  var extra = '';
+  if (m.type === 'notion') extra = '<details class="ug-howto"><summary>Как добавить шаблон в свой Notion</summary>' + NOTION_HOWTO.map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + '</details>';
+  if (m.type === 'gdoc') extra = '<div class="ug-mat-note">Кнопка сразу создаст копию на вашем Google Диске, её можно заполнять.</div>';
+  if (m.note) extra += '<div class="ug-mat-note">' + esc(m.note) + '</div>';
+  return '<div class="ug-mat"><div class="ug-mat-row"><span class="ug-mat-ico">' + ico(m.type === 'file' ? 'download' : 'doc') + '</span>' +
+    '<span class="ug-mat-t">' + esc(m.title) + '</span>' + btn + '</div>' + extra + '</div>';
+}
+function openLesson(id) {
+  var f = lessonById(id); if (!f) return;
+  var l = f.l;
+  var week = WEEKS.indexOf(f.w) + 1, srcv = videoSource(l.video), vid = srcv.id;
+  modal('<div class="ug-kicker">// неделя ' + week + ' · урок ' + f.n + (l.main ? ' · главный' : '') + '</div>' +
+    '<h2 class="ug-h2">' + esc(l.title) + '</h2>' +
+    (l.video
+      ? '<div class="ug-player"><div id="ug-kplayer"></div></div><div class="ug-lwatch" id="ug-lwatch">' + watchState(id) + '</div>'
+      : '<div class="ug-player is-empty"><div class="ug-player-soon">' + ico('hourglass') + '<span>Видео появится здесь совсем скоро</span></div></div>') +
+    (l.note ? '<div class="ug-lnote">' + ico('chip') + '<div><b>' + esc(l.note.q) + '</b><span>' + esc(l.note.a) + '</span>' +
+      (l.note.act ? '<div style="margin-top:12px"><button class="ug-btn is-small" data-act="' + l.note.act + '">' + esc(l.note.btn) + '</button></div>' : '') + '</div></div>' : '') +
+    ((l.materials || []).length ? '<div class="ug-mats"><div class="ug-panel-t">Материалы к уроку</div>' + l.materials.map(materialHtml).join('') + '</div>' : ''),
+    null, 'ug-lesson');
+  if (!l.video) return;
+  music.hold(true);
+  S.afterClose = function () { music.hold(false); if (S.kplayer) { try { S.kplayer.destroy(); } catch (e) {} S.kplayer = null; } };
+  var box = root.querySelector('#ug-kplayer');
+  var manualDone = function () {
+    // прогресс без API плеера не узнать: даём отметить вручную
+    var ws = root.querySelector('#ug-lwatch'); if (ws && !watched(id)) ws.innerHTML = '<button class="ug-btn is-ghost is-small" data-act="lesson-done" data-l="' + id + '">' + ico('check') + 'Я посмотрел урок</button>';
+  };
+  S.lessonCover = coverOk[coverUrl(l)] ? coverFull(l) : '';
+  if (srcv.type === 'boomstream') { boomPlayer(box, srcv, id, l.title); return; }
+  if (srcv.type !== 'kinescope') {
+    box.innerHTML = '<iframe src="' + esc(srcv.src) + '" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" scrolling="no"></iframe>';
+    manualDone();
+    return;
+  }
+  var fallback = function () {
+    if (!box || !box.isConnected) return;
+    box.innerHTML = '<iframe src="https://kinescope.io/embed/' + esc(vid) + '" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock" allowfullscreen frameborder="0"></iframe>';
+    // прогресс без API не узнать: даём отметить вручную
+    var ws = root.querySelector('#ug-lwatch'); if (ws && !watched(id)) ws.innerHTML = '<button class="ug-btn is-ghost is-small" data-act="lesson-done" data-l="' + id + '">' + ico('check') + 'Я посмотрел урок</button>';
+  };
+  loadKinescope().then(function (factory) {
+    if (!box || !box.isConnected) return;
+    return factory.create('ug-kplayer', { url: 'https://kinescope.io/' + vid, size: { width: '100%', height: '100%' } }).then(function (pl) {
+      S.kplayer = pl;
+      pl.on(pl.Events.TimeUpdate, function (e) {
+        var pc = e && e.data && e.data.percent;
+        if (pc >= 80) markWatched(id);
+      });
+      pl.on(pl.Events.Ended, function () { markWatched(id); });
+    });
+  }).catch(fallback);
+}
+// Boomstream: свой экран с кнопкой play поверх плеера, их кнопку ученик не видит.
+// Плеер управляется через postMessage: мы шлём play, он отвечает событиями play / pause / stop / time.
+function boomPlayer(box, srcv, id, title) {
+  var origin = srcv.src.match(/^https:\/\/[^/]+/)[0];
+  box.innerHTML = '<iframe src="' + esc(srcv.src) + '" allow="autoplay; fullscreen" allowfullscreen frameborder="0" scrolling="no"></iframe>' +
+    '<div class="ug-pcover is-start"' + (S.lessonCover ? ' style="--pc-img:url(\'' + esc(S.lessonCover) + '\')"' : '') + '><div class="ug-phit" data-act="pc-play"></div>' +
+      '<div class="ug-pbtn">' + ico('play') + '</div>' +
+      '<div class="ug-pcap"><span>Нажми, чтобы начать урок</span></div>' +
+    '</div>';
+  var frame = box.querySelector('iframe'), cover = box.querySelector('.ug-pcover');
+  var st = { loaded: false, want: false, alive: false, timer: 0 };
+  var send = function (action, data) {
+    try { frame.contentWindow.postMessage({ code: srcv.code, method: 'action', action: action, data: data || '' }, origin); } catch (e) {}
+  };
+  var mode = function (m) {
+    cover.className = 'ug-pcover is-' + m;
+    var cap = cover.querySelector('.ug-pcap span');
+    if (cap) cap.textContent = m === 'pause' ? 'Пауза' : m === 'end' ? 'Посмотреть ещё раз' : m === 'wait' ? 'Загружаем видео' : 'Нажми, чтобы начать урок';
+  };
+  var start = function () {
+    if (cover.classList.contains('is-end')) { send('seek', '0'); }
+    st.want = true; mode('wait');
+    if (st.loaded) send('play');
+    clearTimeout(st.timer);
+    // плеер не ответил: убираем обложку, пусть ученик запустит его кнопкой
+    st.timer = setTimeout(function () { if (st.want) { st.want = false; mode('gone'); } }, st.loaded ? 2500 : 6000);
+  };
+  var onMsg = function (e) {
+    if (e.source !== frame.contentWindow) return;
+    var d = e.data;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (x) { return; } }
+    if (!d || !d.method) return;
+    st.alive = true;
+    if (d.method === 'loaded') { st.loaded = true; if (st.want) send('play'); }
+    else if (d.method === 'play') { st.want = false; clearTimeout(st.timer); mode('playing'); }
+    else if (d.method === 'pause') { if (!st.want) mode('pause'); }
+    else if (d.method === 'stop') { mode('end'); markWatched(id); }
+    if (d.duration > 0 && d.time / d.duration >= 0.8) markWatched(id);
+  };
+  window.addEventListener('message', onMsg);
+  S.boomStart = start;
+  var prevClose = S.afterClose;
+  S.afterClose = function () { window.removeEventListener('message', onMsg); clearTimeout(st.timer); S.boomStart = null; if (prevClose) prevClose(); };
+  // если плеер так и не заговорил с нами, отметку о просмотре ставит сам ученик
+  setTimeout(function () {
+    if (st.alive || !box.isConnected) return;
+    var ws = root.querySelector('#ug-lwatch'); if (ws && !watched(id)) ws.innerHTML = '<button class="ug-btn is-ghost is-small" data-act="lesson-done" data-l="' + id + '">' + ico('check') + 'Я посмотрел урок</button>';
+  }, 8000);
+}
+function watchState(id) {
+  return watched(id) ? '<span class="is-seen">' + ico('check') + 'Урок просмотрен</span>' : '<span>' + ico('eye') + 'Отметка появится, когда досмотришь урок</span>';
+}
+function markWatched(id) {
+  if (!S.player || watched(id)) return;
+  S.player.lessons = (S.player.lessons || []).concat([id]);
+  var ws = root.querySelector('#ug-lwatch'); if (ws) ws.innerHTML = watchState(id);
+  rerenderLessons();
+  music.sfx('tick');
+  apiPost({ action: 'lesson', nick: S.nick, lesson: id }).catch(function () {});
 }
 
 /* рост уровня: счётчик, полоса и всплывающий «+N» */
@@ -1458,23 +2104,40 @@ function openQuest(id) {
     '<h2 class="ug-h2">' + esc(q.title) + '</h2>' +
     '<p class="ug-p">' + esc(q.task) + '</p>' +
     (id === 'q0' ? '<div style="margin-top:16px"><a class="ug-btn is-ghost is-small" href="' + esc(CONFIG.CHAT_URL) + '" target="_blank" rel="noopener">' + ico('chat') + 'Открыть чат потока</a></div>' : '') +
-    '<label class="ug-drop" id="ug-drop">' + ico('upload') +
-      '<div class="ug-drop-t">Прикрепи скриншот</div>' +
-      '<div class="ug-drop-d">До 3 изображений. На компьютере можно перетащить файл или вставить через Ctrl+V.</div>' +
-      '<input type="file" accept="image/*" multiple id="ug-file"></label>' +
-    '<div class="ug-thumbs" id="ug-thumbs"></div>' +
-    '<div class="ug-label" style="margin-top:18px">Комментарий' + (q.proof === 'file' ? ' (необязательно)' : ' или ссылка на работу') + '</div>' +
-    '<label class="ug-field"><textarea id="ug-comment" rows="2" maxlength="2000" placeholder="' + (q.proof === 'file' ? 'Если хочешь что-то добавить' : 'Ссылка на Notion, сайт, документ…') + '"></textarea></label>' +
+    (q.links ? linksForm(q) : uploadForm(q)) +
     '<div class="ug-err" id="ug-qerr"></div>' +
     '<button class="ug-btn is-wide" data-act="quest-send" id="ug-qsend" disabled>Выполнить</button>' +
-    (DEMO ? '<div style="margin-top:12px;text-align:center"><button class="ug-link" data-act="quest-send" data-demo="1">Демо: сдать без скриншота</button></div>' : ''));
+    (DEMO && !q.links ? '<div style="margin-top:12px;text-align:center"><button class="ug-link" data-act="quest-send" data-demo="1">Демо: сдать без скриншота</button></div>' : ''));
 
+  if (q.links) {
+    root.querySelectorAll('.ug-qlink input').forEach(function (i) { i.addEventListener('input', function () { i.closest('.ug-field').classList.remove('is-bad'); updateSend(); }); });
+    return;
+  }
   var drop = root.querySelector('#ug-drop'), input = root.querySelector('#ug-file'), comment = root.querySelector('#ug-comment');
   input.addEventListener('change', function () { addFiles(input.files); input.value = ''; });
   ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
   ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-over'); }); });
   drop.addEventListener('drop', function (e) { if (e.dataTransfer) addFiles(e.dataTransfer.files); });
   comment.addEventListener('input', updateSend);
+}
+// квест со ссылками: по полю на каждый документ
+function linksForm(q) {
+  return '<div class="ug-qlinks">' + q.links.map(function (l) {
+    return '<div class="ug-qlink"><div class="ug-label">' + esc(l.label) + '</div>' +
+      '<label class="ug-field"><input type="url" inputmode="url" data-link="' + l.key + '" placeholder="https://notion.so/…" autocomplete="off" spellcheck="false"></label></div>';
+  }).join('') + '</div>' +
+  '<div class="ug-hint">Проверь, что страницы открыты по ссылке: в Notion нажми Share и в General access выбери Anyone with the link.</div>' +
+  '<div class="ug-label" style="margin-top:16px">Комментарий (необязательно)</div>' +
+  '<label class="ug-field"><textarea id="ug-comment" rows="2" maxlength="1500" placeholder="Если хочешь что-то добавить"></textarea></label>';
+}
+function uploadForm(q) {
+  return '<label class="ug-drop" id="ug-drop">' + ico('upload') +
+      '<div class="ug-drop-t">Прикрепи скриншот</div>' +
+      '<div class="ug-drop-d">До 3 изображений. На компьютере можно перетащить файл или вставить через Ctrl+V.</div>' +
+      '<input type="file" accept="image/*" multiple id="ug-file"></label>' +
+    '<div class="ug-thumbs" id="ug-thumbs"></div>' +
+    '<div class="ug-label" style="margin-top:18px">Комментарий' + (q.proof === 'file' ? ' (необязательно)' : ' или ссылка на работу') + '</div>' +
+    '<label class="ug-field"><textarea id="ug-comment" rows="2" maxlength="2000" placeholder="' + (q.proof === 'file' ? 'Если хочешь что-то добавить' : 'Ссылка на Notion, сайт, документ…') + '"></textarea></label>';
 }
 // файлы читаем через FileReader в data-URL: blob-ссылки блокируются в некоторых окнах (превью, встроенные браузеры)
 function addFiles(list) {
@@ -1499,8 +2162,13 @@ function renderThumbs() {
   if (err) err.textContent = S.files.some(function (f) { return f.failed; }) ? 'Этот файл не получилось прочитать. Попробуй другой скриншот.' : '';
   updateSend();
 }
+function questLinks() {
+  return Array.prototype.map.call(root.querySelectorAll('.ug-qlink input'), function (i) { return i.value.trim(); });
+}
+var LINK_RE = /^(https?:\/\/)?[^\s.\/]+\.[^\s]{2,}$/i;
 function canSend() {
   var q = QUESTS.filter(function (x) { return x.id === S.questId; })[0];
+  if (q && q.links) return questLinks().every(function (v) { return v.length > 0; });
   var comment = root.querySelector('#ug-comment');
   var hasText = comment && comment.value.trim().length > 0;
   var ready = S.files.filter(function (f) { return f.dataUrl && !f.failed; }).length;
@@ -1535,6 +2203,19 @@ function compress(f) {
 function sendQuest(btn) {
   if (!canSend() && !btn.getAttribute('data-demo')) return;
   var err = root.querySelector('#ug-qerr'), comment = root.querySelector('#ug-comment').value.trim(), id = S.questId;
+  var qd = QUESTS.filter(function (x) { return x.id === id; })[0];
+  if (qd && qd.links) {
+    // три ссылки складываем в комментарий: так они придут в письме и лягут во вкладку «Сдачи»
+    var vals = questLinks(), bad = -1;
+    vals.forEach(function (v, i) { if (bad < 0 && !LINK_RE.test(v)) bad = i; });
+    if (bad >= 0) {
+      root.querySelectorAll('.ug-qlink .ug-field')[bad].classList.add('is-bad');
+      err.textContent = 'Похоже, в поле «' + qd.links[bad].label + '» не ссылка. Скопируй адрес страницы целиком.';
+      return;
+    }
+    comment = qd.links.map(function (l, i) { var v = vals[i]; return l.label + ': ' + (/^https?:/i.test(v) ? v : 'https://' + v); }).join('\n') +
+      (comment ? '\nКомментарий: ' + comment : '');
+  }
   btn.classList.add('is-loading'); btn.textContent = 'Отправка';
   var ready = S.files.filter(function (f) { return f.dataUrl && !f.failed; });
   Promise.all(ready.map(compress))
@@ -1546,7 +2227,7 @@ function sendQuest(btn) {
         closeModal(); screenDash(); music.sfx('achieve');
         var q = questView(QUESTS.filter(function (x) { return x.id === id; })[0]);
         modal(burst() +
-          '<div class="ug-kicker">// квест сдан</div>' +
+          '<div class="ug-kicker">// квест отправлен на проверку</div>' +
           '<h2 class="ug-h2">«' + esc(q.title) + '»</h2>' +
           '<p class="ug-p">Гриша посмотрит выполнение и засчитает квест. Как только он его утвердит, иконка квеста в журнале сменится на пройденную.</p>' +
           '<div class="ug-dialog-actions"><button class="ug-btn" data-act="close">В профиль</button></div>', null, 'ug-congrats');
@@ -1589,11 +2270,12 @@ function closeModal() {
 /* ---------- обновление при возврате на вкладку ---------- */
 var lastRefresh = 0;
 function refresh() {
-  if (!S.player || !S.nick || root.querySelector('.ug-modal')) return;
+  if (!S.player || !S.nick || root.querySelector('.ug-modal') || S.screen !== 'dash') return;
   if (Date.now() - lastRefresh < 10000) return;
   lastRefresh = Date.now();
   apiGet(S.nick).then(function (res) {
     if (!res || !res.ok || !res.exists) return;
+    if (res.needPin) { store.del('ug_pin_' + S.nick); screenPin(S.nick, res.error); return; }
     var before = JSON.stringify([S.player, S.settings]);
     S.player = res.player; if (res.settings) S.settings = res.settings;
     if (JSON.stringify([S.player, S.settings]) !== before && root.classList.contains('is-dash')) screenDash();
@@ -1603,10 +2285,13 @@ document.addEventListener('visibilitychange', function () { if (!document.hidden
 window.addEventListener('focus', refresh);
 // пока квест на проверке и профиль открыт на экране, раз в 30 секунд спрашиваем таблицу:
 // как только Гриша засчитает квест, поздравление появится без перезагрузки
+var pollTick = 0;
 setInterval(function () {
   if (document.hidden || !S.player || !root.classList.contains('is-dash')) return;
+  pollTick++;
   var waiting = QUESTS.some(function (q) { return questState(q.id) === 'review'; });
-  if (waiting) refresh();
+  // квест на проверке: каждые 30 секунд; в остальное время раз в 2 минуты, чтобы ловить ачивки и новые недели
+  if (waiting || pollTick % 4 === 0) refresh();
 }, 30000);
 
 /* ---------- демо-панель ---------- */
@@ -1619,6 +2304,7 @@ function demoPanel() {
     '<button data-act="demo-week">Открыть следующую неделю</button>' +
     '<button data-act="demo-pet">Выдать питомца</button>' +
     '<button data-act="demo-weapon">Выдать автоматона</button>' +
+    '<button data-act="demo-ach">Выдать «Первопроходца»</button>' +
     '<button data-act="demo-reset">Сбросить всё</button></div>';
   root.appendChild(d);
 }
@@ -1645,7 +2331,6 @@ var ACTIONS = {
   'quiz-mid-go': function () { screenQuiz(QUIZ_MID); },
   'quiz-mid-back': function () { S.draft.midShown = false; screenQuiz(QUIZ_MID - 1); },
   'back-class': function () { screenClass(); var k = S.draft.cls; if (k) { var el = root.querySelector('.ug-class[data-cls="' + k + '"]'); if (el) pickClass(el); } },
-  'copy-link': function () { copy(personalLink(S.nick)); },
   'open-profile': function () { S.justCreated = true; screenDash(); },
   poke: poke,
   egg: function (el) { eggPoke(el); },
@@ -1663,18 +2348,46 @@ var ACTIONS = {
   'rm-file': function (el) { S.files.splice(+el.getAttribute('data-i'), 1); renderThumbs(); },
   'quest-send': function (el) { sendQuest(el); },
   'login-go': function (el) { music.prime(); submitLogin(el.closest('form')); },
+  'pin-go': function (el) { music.prime(); submitPin(el.closest('form')); },
+  'pin-save': function (el) { savePin(el.closest('form')); },
+  'ach-claim': function (el) { claimAward(el.getAttribute('data-ach')); },
+  'ach-info': function (el) { if (!el.classList.contains('is-pending')) achInfo(el.getAttribute('data-ach')); },
+  'ach-locked': function () { modal('<div class="ug-award-stage">' + lockedBadge().replace('ug-badge', 'ug-badge is-big') + '</div><div class="ug-kicker">// достижение</div><h2 class="ug-h2">Пока скрыто</h2><p class="ug-p">Сюда прибьют следующую ачивку. За что её дают, узнаешь, когда получишь.</p>', '#8b93c9', 'ug-congrats ug-award'); },
+  'lesson-week': function (el) { S.lessonWeek = el.getAttribute('data-w'); music.sfx('tick'); rerenderLessons(); },
+  'lesson': function (el) { openLesson(el.getAttribute('data-l')); },
+  'lesson-done': function (el) { markWatched(el.getAttribute('data-l')); },
+  // из урока к инвентарю: закрываем окно, едем к скиллам и один раз подсвечиваем панель
+  'goto-skills': function () {
+    closeModal();
+    var inv = root.querySelector('#ug-inv-panel'); if (!inv) return;
+    inv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    var done = false, flash = function () {
+      if (done) return; done = true;
+      inv.classList.remove('is-flash'); void inv.offsetWidth; inv.classList.add('is-flash');
+      music.sfx('tick');
+    };
+    var sc = root.querySelector('.ug-stage') || root;
+    var last = -1, still = 0, iv = setInterval(function () {
+      var y = inv.getBoundingClientRect().top;
+      still = Math.abs(y - last) < 1 ? still + 1 : 0; last = y;
+      if (still >= 2) { clearInterval(iv); flash(); }
+    }, 80);
+    setTimeout(function () { clearInterval(iv); flash(); }, 1600);
+  },
+  'pc-play': function () { music.prime(); if (S.boomStart) S.boomStart(); },
   close: closeModal,
   backdrop: function (el, e) { if (e.target === el) closeModal(); },
   logout: function () {
     modal('<div class="ug-kicker">// смена игрока</div><h2 class="ug-h2">Выйти из профиля?</h2>' +
-      '<p class="ug-p">Персонаж не пропадёт. Вернуться можно по личной ссылке или введя ник ещё раз.</p>' +
+      '<p class="ug-p">Персонаж не пропадёт. Чтобы вернуться, введи ник и ПИН-код ещё раз.</p>' +
       '<div class="ug-dialog-actions"><button class="ug-btn is-ghost" data-act="close">Остаться</button><button class="ug-btn" data-act="logout-ok">Выйти</button></div>');
   },
-  'logout-ok': function () { closeModal(); if (music.isPlaying()) music.start('ambient'); store.del('ug_nick'); setHash(''); S.player = null; S.nick = ''; S.draft = {}; screenLogin(''); },
+  'logout-ok': function () { closeModal(); if (music.isPlaying()) music.start('ambient'); store.del('ug_nick'); if (S.nick) store.del('ug_pin_' + S.nick); setHash(''); S.player = null; S.nick = ''; S.draft = {}; screenLogin(''); },
   'demo-approve': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; Object.keys(p.quests).forEach(function (k) { if (p.quests[k] === 'на проверке') p.quests[k] = 'выполнен'; }); }); },
   'demo-rework': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; Object.keys(p.quests).forEach(function (k) { if (p.quests[k] === 'на проверке') p.quests[k] = 'доработать'; }); }); },
   'demo-week': function () { demoMutate(function (db) { for (var i = 0; i < QUESTS.length; i++) { var id = QUESTS[i].id; if (!db.settings[id].open) { db.settings[id].open = true; db.settings[id].deadline = 'вс, 23:59 МСК'; break; } } }); },
   'demo-pet': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.pet = 'Кибер-лис'; }); },
+  'demo-ach': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) { p.achievements = p.achievements || []; if (p.achievements.indexOf('pioneer') < 0) p.achievements.push('pioneer'); } }); },
   'demo-weapon': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.weapon = 'Автоматон «Искра»'; }); },
   'demo-reset': function () { store.del('ug_demo_db'); store.del('ug_nick'); if (S.nick) store.del('ug_seen_' + S.nick); setHash(''); location.reload(); }
 };
@@ -1684,14 +2397,27 @@ root.addEventListener('click', function (e) {
   var fn = ACTIONS[el.getAttribute('data-act')];
   if (fn) fn(el, e);
 });
+// в поле ПИН-кода остаются только цифры
+root.addEventListener('input', function (e) {
+  if (!e.target.matches || !e.target.matches('input[name=pin]')) return;
+  var v = e.target.value.replace(/\D/g, '').slice(0, 4);
+  if (v !== e.target.value) e.target.value = v;
+  var f = e.target.closest('.ug-field'); if (f) f.classList.remove('is-bad');
+});
 root.addEventListener('submit', function (e) {
   var f = e.target.getAttribute('data-form');
   if (!f) return;
   e.preventDefault();
   if (f === 'login') submitLogin(e.target);
+  if (f === 'pin') submitPin(e.target);
+  if (f === 'pin-set') savePin(e.target);
 });
 root.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape') { closeModal(); return; }
+  if (e.key === 'Escape') { if (!root.querySelector('.ug-modal.is-locked')) closeModal(); return; }
+  if (e.target.matches && e.target.matches('input[name=pin]')) {
+    if (e.key === 'Enter') { e.preventDefault(); var f = e.target.closest('form'); if (f.getAttribute('data-form') === 'pin') submitPin(f); else savePin(f); }
+    return;
+  }
   // Enter в поле ника: отправляем сами, не полагаясь на отправку формы
   if (e.key === 'Enter' && e.target.matches && e.target.matches('input[name=nick]')) {
     e.preventDefault(); music.prime(); submitLogin(e.target.closest('form'));
@@ -1750,9 +2476,11 @@ var preloaded = [];
   var L = CONFIG.LEVEL_IMAGES || {}, lvl = [], cls = [];
   Object.keys(L).forEach(function (at) { ['m', 'f'].forEach(function (g) { Object.keys(L[at][g] || {}).forEach(function (c) { lvl.push(L[at][g][c]); }); }); });
   ['m', 'f'].forEach(function (g) { Object.keys(CONFIG.IMAGES[g] || {}).forEach(function (c) { cls.push(CONFIG.IMAGES[g][c]); }); });
-  var flow = [CONFIG.CITY_IMAGE, CONFIG.VILLAGE_IMAGE, CONFIG.GENDER_IMAGES.m, CONFIG.GENDER_IMAGES.f]
-    .concat(cls, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], lvl);
-  if (startNick) flow = [CONFIG.CITY_IMAGE].concat(lvl, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], flow);
+  // миниатюры уроков лёгкие (300 px), качаем их сразу; полные обложки для плеера в самом конце
+  var thumbs = [], fulls = [];
+  WEEKS.forEach(function (w) { (LESSONS[w] || []).forEach(function (l) { thumbs.push(coverUrl(l)); fulls.push(coverFull(l)); }); });
+  var flow = [CONFIG.CITY_IMAGE].concat(thumbs, [CONFIG.VILLAGE_IMAGE, CONFIG.GENDER_IMAGES.m, CONFIG.GENDER_IMAGES.f], cls, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], lvl, fulls);
+  if (startNick) flow = [CONFIG.CITY_IMAGE].concat(lvl, thumbs, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], fulls, flow);
   var seen = {}, queue = flow.filter(function (u) { if (!u || seen[u] || /^data:/.test(u)) return false; seen[u] = 1; return true; });
   var next = function () {
     var url = queue.shift();
@@ -1760,13 +2488,15 @@ var preloaded = [];
     var im = new Image();
     preloaded.push(im);
     im.onload = function () {
+      coverOk[url] = true;
+      if (thumbs.indexOf(url) >= 0) hydrateThumbs();
       // заранее декодируем, чтобы картинка появилась на экране без задержки
       if (im.decode) im.decode().then(next, next); else next();
     };
     im.onerror = next;
     im.src = url;
   };
-  for (var i = 0; i < 3; i++) next(); // три загрузки параллельно
+  for (var i = 0; i < 4; i++) next(); // четыре загрузки параллельно
 })();
 
 })();
