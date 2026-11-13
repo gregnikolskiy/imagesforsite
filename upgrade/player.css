@@ -338,7 +338,7 @@
 #ug-root .ug-logo-sub{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
 #ug-root .ug-topbar .ug-link{white-space:nowrap}
 #ug-root .ug-nick-big{margin:12px 0 8px;font-size:clamp(24px,3.2vw,44px);overflow-wrap:anywhere;text-transform:none}
-#ug-root .ug-dash{display:grid;grid-template-columns:minmax(330px,min(420px,calc(100vh - 450px))) minmax(0,1fr);gap:28px;align-items:start}
+#ug-root .ug-dash{display:grid;grid-template-columns:minmax(260px,min(420px,calc(100vh - 430px))) minmax(0,1fr);gap:28px;align-items:start}
 #ug-root .ug-hero{position:sticky;top:20px}
 #ug-root .ug-hero-img{position:relative;margin:8px}
 #ug-root .ug-hero-img .ug-portrait{aspect-ratio:1/1.08;height:auto}
@@ -638,7 +638,7 @@
 #ug-root .ug-center{flex:1;display:grid;place-items:center;font-family:var(--f-mono);letter-spacing:.2em;color:var(--muted);font-size:12px}
 
 /* невысокие экраны ноутбуков: ужимаем отступы, чтобы питомец и оружие оставались в первом экране */
-@media (min-width:981px) and (max-height:820px){
+@media (min-width:981px) and (max-height:900px){
   #ug-root .ug-wrap{padding-top:14px}
   #ug-root .ug-topbar{padding-top:10px;padding-bottom:14px;margin-bottom:16px}
   #ug-root .ug-hero{top:12px}
@@ -706,3 +706,272 @@
 @media (prefers-reduced-motion:reduce){
   #ug-root *,#ug-root *::before,#ug-root *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* ПИН-код */
+#ug-root .ug-pin-field input{font-family:var(--f-mono);font-size:30px;letter-spacing:.55em;text-align:center;padding:14px 0 14px .55em}
+#ug-root .ug-pin-field input::placeholder{color:rgba(255,255,255,.14)}
+#ug-root .ug-pin-dialog{max-width:460px;text-align:center;padding-top:34px}
+#ug-root .ug-pin-dialog .ug-h2{padding-right:0}
+#ug-root .ug-pin-dialog .ug-p{margin:0 auto 22px;font-size:15px}
+#ug-root .ug-pin-dialog .ug-err{text-align:center}
+#ug-root .ug-pin-ico{width:56px;height:56px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;border:1px solid var(--acc);color:var(--acc);box-shadow:0 0 30px -6px var(--acc);animation:ug-pin-pulse 2.4s ease-in-out infinite}
+#ug-root .ug-pin-ico svg{width:24px;height:24px}
+@keyframes ug-pin-pulse{0%,100%{box-shadow:0 0 22px -8px var(--acc)}50%{box-shadow:0 0 36px -2px var(--acc)}}
+
+/* ===== Ачивки: значок в пиксельном восьмиугольнике ===== */
+#ug-root .ug-badge{position:relative;aspect-ratio:1;width:100%;filter:drop-shadow(0 0 8px rgba(255,190,60,.45))}
+#ug-root .ug-badge-o,#ug-root .ug-badge-f,#ug-root .ug-badge-l{width:100%;height:100%;clip-path:var(--oct);box-sizing:border-box}
+#ug-root .ug-badge-o{background:#1a0a28;padding:3%}
+#ug-root .ug-badge-f{background:linear-gradient(135deg,#fff2a8 0%,#ffd23f 32%,#f59e0b 62%,#b45309 100%);padding:7%;position:relative}
+#ug-root .ug-badge-l{background:#1a0a28;padding:2.5%}
+#ug-root .ug-badge img,#ug-root .ug-badge-ph{display:block;width:100%;height:100%;object-fit:cover;clip-path:var(--oct);image-rendering:pixelated;user-select:none}
+#ug-root .ug-badge-ph{display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,#2a1f4a,#0d0f1a 70%);color:#ffd23f}
+#ug-root .ug-badge-ph .ug-ico{width:36%;height:36%}
+#ug-root .ug-badge.is-locked{filter:none}
+#ug-root .ug-badge.is-locked .ug-badge-f{background:linear-gradient(135deg,#6b7594 0%,#3a4360 55%,#20263a 100%)}
+#ug-root .ug-badge.is-locked .ug-badge-ph{background:radial-gradient(circle at 50% 40%,#1a2033,#0b0e18 70%);color:var(--muted);position:relative}
+#ug-root .ug-badge.is-locked .ug-badge-ph b{position:absolute;right:22%;top:18%;font-family:var(--f-logo);font-size:13px;color:var(--dim)}
+#ug-root .ug-badge.is-big{width:min(220px,58vw);margin:0 auto;filter:drop-shadow(0 0 22px rgba(255,190,60,.6))}
+#ug-root .ug-badge.is-big.is-locked{filter:none}
+#ug-root .ug-badge.is-big .ug-badge-ph b{font-size:30px}
+/* блик пробегает по новой ачивке */
+#ug-root .ug-badge.is-new{animation:ug-badge-in .8s cubic-bezier(.2,1.5,.4,1) both}
+#ug-root .ug-badge.is-new .ug-badge-l{position:relative}
+#ug-root .ug-badge.is-new .ug-badge-l::after{content:'';position:absolute;inset:0;clip-path:var(--oct);background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.55) 48%,transparent 60%);background-size:250% 100%;animation:ug-shine 2.6s ease-in-out .7s infinite}
+@keyframes ug-badge-in{0%{transform:scale(.2) rotate(-25deg);opacity:0}100%{transform:none;opacity:1}}
+@keyframes ug-shine{0%{background-position:150% 0}60%,100%{background-position:-60% 0}}
+#ug-root .ug-award{max-width:440px}
+#ug-root .ug-award-stage{position:relative;padding:8px 0 26px;display:grid;place-items:center}
+#ug-root .ug-award-rays{position:absolute;left:50%;top:44%;width:420px;height:420px;margin:-210px 0 0 -210px;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,rgba(255,210,63,.16) 0deg 9deg,transparent 9deg 24deg);
+  -webkit-mask:radial-gradient(circle,#000 22%,transparent 62%);mask:radial-gradient(circle,#000 22%,transparent 62%);animation:ug-rays 14s linear infinite}
+@keyframes ug-rays{to{transform:rotate(360deg)}}
+#ug-root .ug-award-spark{position:absolute;left:50%;top:44%;width:7px;height:7px;background:#ffd23f;box-shadow:0 0 8px #ffd23f;animation:ug-spark 1s ease-out both}
+#ug-root .ug-award-spark:nth-child(3n){background:#fff2a8}
+#ug-root .ug-award-spark:nth-child(4n){background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+
+/* доска достижений под питомцем и автоматоном */
+#ug-root .ug-board{margin:12px 8px 0;padding:12px 12px 14px;border:1px solid rgba(255,210,63,.28);background:
+  repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 2px,transparent 2px 22px),linear-gradient(180deg,rgba(40,26,8,.45),rgba(14,12,20,.7));position:relative}
+#ug-root .ug-board::before,#ug-root .ug-board::after{content:'';position:absolute;top:6px;width:4px;height:4px;background:#b45309;box-shadow:0 calc(100% + 0px) 0 #b45309}
+#ug-root .ug-board::before{left:6px}#ug-root .ug-board::after{right:6px}
+#ug-root .ug-board-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-family:var(--f-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#ffd23f}
+#ug-root .ug-board-h .mono{color:var(--muted);letter-spacing:.1em}
+#ug-root .ug-board-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#ug-root .ug-bslot{position:relative;aspect-ratio:1;cursor:pointer;transition:transform .15s}
+#ug-root .ug-bslot:hover{transform:translateY(-2px)}
+#ug-root .ug-bslot.is-pending{background:radial-gradient(circle,rgba(255,210,63,.18),transparent 70%);clip-path:var(--oct);animation:ug-pend 1.2s ease-in-out infinite}
+@keyframes ug-pend{50%{opacity:.4}}
+#ug-root .ug-bslot.is-slam{animation:ug-slam .55s cubic-bezier(.2,1.6,.3,1)}
+@keyframes ug-slam{0%{transform:scale(1.45)}35%{transform:scale(.88)}65%{transform:scale(1.06)}100%{transform:scale(1)}}
+#ug-root .ug-board.is-hit{animation:ug-hit .4s linear}
+@keyframes ug-hit{20%{transform:translate(-3px,2px)}40%{transform:translate(3px,-2px)}60%{transform:translate(-2px,1px)}80%{transform:translate(1px,0)}}
+#ug-root .ug-bslot-sparks{position:absolute;inset:0;pointer-events:none}
+#ug-root .ug-bslot-sparks .ug-award-spark{top:50%;width:5px;height:5px}
+#ug-root .ug-fly{position:fixed;z-index:60;pointer-events:none;transform-origin:50% 50%}
+#ug-root .ug-fly .ug-badge.is-big{width:100%}
+
+/* ===== Уроки ===== */
+#ug-root .ug-ltabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+#ug-root .ug-ltab{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--line2);background:none;color:var(--muted);font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;cursor:pointer}
+#ug-root .ug-ltab .ug-ico{width:13px;height:13px}
+#ug-root .ug-ltab.is-on{border-color:var(--acc);color:var(--acc);background:rgba(56,226,255,.06)}
+#ug-root .ug-ltab.is-locked{color:var(--dim)}
+#ug-root .ug-ltab.is-on.is-locked{color:var(--muted);border-color:var(--muted);background:none}
+#ug-root .ug-lrow{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line2);cursor:pointer;transition:background .15s}
+#ug-root .ug-lrow:first-child{border-top:0}
+#ug-root .ug-lrow:hover{background:rgba(255,255,255,.025)}
+#ug-root .ug-lico{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--acc);color:var(--acc)}
+#ug-root .ug-lico .ug-ico{width:16px;height:16px}
+#ug-root .ug-lrow.is-seen .ug-lico{border-color:var(--green);color:var(--green);background:rgba(61,255,158,.07)}
+
+#ug-root .ug-lrow.is-soon .ug-lico{border-color:var(--line2);color:var(--dim)}
+#ug-root .ug-lrow.is-soon .ug-lt{color:var(--muted)}
+#ug-root .ug-lt{font-size:15px;line-height:1.35;color:var(--text)}
+#ug-root .ug-lm{margin-top:3px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+#ug-root .ug-lm .ug-ico{width:12px;height:12px}
+#ug-root .ug-ltag{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;color:var(--dim);white-space:nowrap}
+#ug-root .ug-ltag.is-main{color:var(--pink);border:1px solid rgba(255,43,214,.45);padding:3px 7px}
+#ug-root .ug-lempty{display:flex;align-items:center;gap:10px;padding:16px 0 4px;color:var(--muted);font-size:14px}
+#ug-root .ug-lempty .ug-ico{width:16px;height:16px;flex:none}
+#ug-root .ug-lesson{max-width:980px;padding:24px 24px 22px}
+#ug-root .ug-lesson .ug-h2{margin-bottom:14px}
+#ug-root .ug-player{position:relative;width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--line2)}
+#ug-root .ug-player > div,#ug-root .ug-player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+#ug-root .ug-lwatch{margin-top:10px;font-size:13px;color:var(--muted);display:flex;align-items:center;min-height:30px}
+#ug-root .ug-lwatch span{display:inline-flex;align-items:center;gap:7px}
+#ug-root .ug-lwatch .ug-ico{width:15px;height:15px}
+#ug-root .ug-lwatch .is-seen{color:var(--green)}
+#ug-root .ug-mats{margin-top:14px;display:grid;gap:8px}
+#ug-root .ug-mats > .ug-panel-t{margin-bottom:2px}
+#ug-root .ug-mat{border:1px solid var(--line2);padding:10px 12px;background:rgba(255,255,255,.02)}
+#ug-root .ug-mat-row{display:flex;align-items:center;gap:10px}
+#ug-root .ug-mat-ico{color:var(--acc);display:grid}
+#ug-root .ug-mat-ico .ug-ico{width:18px;height:18px}
+#ug-root .ug-mat-t{flex:1;min-width:0;font-size:14px}
+#ug-root .ug-mat-soon{font-family:var(--f-mono);font-size:11px;color:var(--dim)}
+#ug-root .ug-mat-note{margin-top:8px;font-size:13px;color:var(--muted)}
+#ug-root .ug-howto{margin-top:8px;font-size:13px;color:var(--muted)}
+#ug-root .ug-howto summary{cursor:pointer;color:var(--acc);font-size:13px}
+#ug-root .ug-howto p{margin:6px 0 0;line-height:1.5}
+@media (max-width:760px){
+  #ug-root .ug-lesson{max-width:none;max-height:100dvh;height:100dvh;padding:18px 16px}
+  #ug-root .ug-modal:has(.ug-lesson){padding:0}
+  #ug-root .ug-lrow{grid-template-columns:32px minmax(0,1fr)}
+  #ug-root .ug-lrow .ug-ltag{grid-column:2;justify-self:start;margin-top:-4px}
+  #ug-root .ug-lico{width:32px;height:32px}
+  #ug-root .ug-board-grid{gap:8px}
+}
+#ug-root .ug-player{max-width:calc((100dvh - 300px) * 16 / 9);margin:0 auto}
+@media (max-width:760px){#ug-root .ug-ltabs{display:grid;grid-template-columns:1fr 1fr}#ug-root .ug-ltab{justify-content:center}#ug-root .ug-player{max-width:none}}
+#ug-root .ug-player.is-empty{background:repeating-linear-gradient(135deg,rgba(255,255,255,.025) 0 10px,transparent 10px 20px),#05070d}
+#ug-root .ug-player-soon{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-family:var(--f-mono);font-size:13px;letter-spacing:.08em;text-align:center;padding:20px}
+#ug-root .ug-player-soon .ug-ico{width:28px;height:28px;color:var(--acc)}
+
+/* уровень поверх портрета */
+#ug-root .ug-hero-img .ug-level.is-over{position:absolute;left:0;right:0;bottom:0;margin:0;padding:46px 14px 10px;z-index:3;
+  background:linear-gradient(180deg,rgba(6,8,15,0) 0%,rgba(6,8,15,.72) 42%,rgba(6,8,15,.94) 100%);pointer-events:none}
+#ug-root .ug-hero-img .ug-level.is-over .ug-level-num{text-shadow:0 2px 12px rgba(0,0,0,.8)}
+#ug-root .ug-hero-tag{margin-top:10px}
+#ug-root .ug-loot{margin-top:10px}
+#ug-root .ug-board{margin-top:10px}
+#ug-root .ug-btn.ug-origin-btn{margin-top:12px}
+@media (min-width:981px) and (max-height:760px){#ug-root .ug-loot .ug-pet-t{font-size:12px;letter-spacing:0}#ug-root .ug-loot .ug-pet-d{font-size:11px}}
+
+/* ===== Уроки v2: заметнее ===== */
+#ug-root .ug-lrow{grid-template-columns:44px minmax(0,1fr) auto;gap:14px;padding:14px 12px;margin:0 -12px;border-top:1px solid var(--line2)}
+#ug-root .ug-lrow:hover{background:rgba(255,255,255,.035)}
+#ug-root .ug-lico{width:44px;height:44px;border-radius:50%;border:2px solid var(--acc);color:var(--acc);background:rgba(255,255,255,.02);transition:transform .15s,box-shadow .15s}
+#ug-root .ug-lrow:hover .ug-lico{transform:scale(1.08);box-shadow:0 0 18px -4px var(--acc)}
+#ug-root .ug-lico .ug-ico{width:18px;height:18px}
+#ug-root .ug-lrow:not(.is-seen) .ug-lico .ug-ico path{fill:currentColor}
+#ug-root .ug-lrow.is-seen .ug-lico{background:var(--green);border-color:var(--green);color:#04140b}
+#ug-root .ug-lrow.is-seen .ug-lico .ug-ico{stroke-width:3}
+#ug-root .ug-lt{font-size:16px;line-height:1.35;color:#eef1f8}
+#ug-root .ug-lt b{font-weight:800;color:#fff}
+#ug-root .ug-lrow.is-seen .ug-lt{color:var(--muted)}
+#ug-root .ug-lrow.is-seen .ug-lt b{color:var(--muted)}
+#ug-root .ug-lm{font-size:12px;margin-top:5px;gap:6px}
+#ug-root .ug-lm .ug-dot{width:3px;height:3px;background:var(--dim);display:inline-block;margin:0 2px}
+#ug-root .ug-lnext{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);margin-bottom:6px}
+/* ближайший урок: крупная карточка */
+#ug-root .ug-lrow.is-next{grid-template-columns:64px minmax(0,1fr) auto;gap:18px;padding:20px 18px;margin:6px -6px 10px;border:1px solid var(--acc);
+  background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.01));box-shadow:0 0 34px -14px var(--acc),inset 0 0 40px -30px var(--acc)}
+#ug-root .ug-lrow.is-next + .ug-lrow{border-top:0}
+#ug-root .ug-lrow.is-next .ug-lico{width:64px;height:64px;background:var(--acc);color:#05070d;border-color:var(--acc);animation:ug-lpulse 2s ease-in-out infinite}
+#ug-root .ug-lrow.is-next .ug-lico .ug-ico{width:26px;height:26px}
+#ug-root .ug-lrow.is-next .ug-lt{font-size:20px;font-weight:600}
+@keyframes ug-lpulse{0%,100%{box-shadow:0 0 0 0 var(--acc)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}
+#ug-root .ug-llist{margin-top:8px}
+@media (max-width:760px){
+  #ug-root .ug-lrow{grid-template-columns:40px minmax(0,1fr);margin:0 -8px;padding:12px 8px}
+  #ug-root .ug-lico{width:40px;height:40px}
+  #ug-root .ug-lrow.is-next{grid-template-columns:52px minmax(0,1fr);padding:16px 12px;margin:6px -4px 10px}
+  #ug-root .ug-lrow.is-next .ug-lico{width:52px;height:52px}
+  #ug-root .ug-lrow.is-next .ug-lt{font-size:18px}
+}
+
+/* ===== Квест со ссылками ===== */
+#ug-root .ug-qlinks{display:grid;gap:12px;margin-top:18px}
+#ug-root .ug-qlink .ug-label{margin-bottom:6px}
+#ug-root .ug-field.is-bad{border-color:var(--red,#ff4d6d)}
+
+/* ===== Новый скилл в инвентаре ===== */
+#ug-root .ug-item.is-new{cursor:pointer;border-color:var(--acc);background:rgba(255,255,255,.04);animation:ug-newpulse 1.8s ease-in-out infinite}
+#ug-root .ug-item.is-new .ug-item-ico{color:var(--acc);border-color:var(--acc)}
+#ug-root .ug-item.is-new .ug-item-meta{color:var(--acc)}
+#ug-root .ug-item-new{position:absolute;top:-1px;right:-1px;padding:3px 7px;background:var(--acc);color:#05070d;font-family:var(--f-mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+@keyframes ug-newpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0),0 0 18px -8px var(--acc)}50%{box-shadow:0 0 0 0 rgba(255,255,255,0),0 0 30px -4px var(--acc)}}
+#ug-root .ug-item.is-mine{border-color:var(--acc)}
+#ug-root .ug-item.is-mine .ug-item-name{color:#fff}
+#ug-root .ug-skill-ico{width:64px;height:64px;margin:0 auto 16px;display:grid;place-items:center;border:1px solid var(--acc);color:var(--acc);box-shadow:0 0 30px -8px var(--acc)}
+#ug-root .ug-skill-ico .ug-ico{width:30px;height:30px}
+
+/* обложка поверх плеера Boomstream */
+#ug-root .ug-player .ug-pcover{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;
+  background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.05),transparent 55%),repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px),#05070d;transition:opacity .25s,background .25s}
+#ug-root .ug-pbtn{width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:#05070d;box-shadow:0 0 40px -6px var(--acc);animation:ug-lpulse 2s ease-in-out infinite;transition:transform .15s}
+#ug-root .ug-pcover:has(.ug-phit:hover) .ug-pbtn{transform:scale(1.07)}
+#ug-root .ug-pbtn .ug-ico{width:34px;height:34px}
+#ug-root .ug-pbtn .ug-ico path{fill:currentColor}
+#ug-root .ug-pcap{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:0 20px}
+#ug-root .ug-pcap b{font-size:18px;color:#fff;font-weight:700;max-width:560px}
+#ug-root .ug-pcap span{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+#ug-root .ug-pcover.is-wait .ug-pbtn{animation:ug-pwait 1s linear infinite}
+@keyframes ug-pwait{0%{box-shadow:0 0 0 0 var(--acc)}100%{box-shadow:0 0 0 22px rgba(255,255,255,0)}}
+#ug-root .ug-pcover.is-playing,#ug-root .ug-pcover.is-gone{opacity:0;pointer-events:none}
+/* пауза: середину плотно закрываем (там их кнопка), остальное полупрозрачно;
+   нижняя полоса с перемоткой остаётся кликабельной */
+#ug-root .ug-pcover{pointer-events:none}
+#ug-root .ug-pbtn,#ug-root .ug-pcap{pointer-events:none;position:relative;z-index:1}
+#ug-root .ug-phit{position:absolute;inset:0;pointer-events:auto;cursor:pointer}
+#ug-root .ug-pcover.is-playing .ug-phit,#ug-root .ug-pcover.is-gone .ug-phit{pointer-events:none}
+/* ровное затемнение кадра; их кнопку в центре закрывает плотное кольцо вокруг нашей */
+#ug-root .ug-pcover.is-pause,#ug-root .ug-pcover.is-end{background:rgba(5,7,13,.45)}
+#ug-root .ug-pcover.is-pause .ug-pbtn,#ug-root .ug-pcover.is-end .ug-pbtn{box-shadow:0 0 0 14px rgba(5,7,13,.92),0 0 0 15px rgba(255,255,255,.08)}
+#ug-root .ug-pcover.is-pause .ug-phit,#ug-root .ug-pcover.is-end .ug-phit{bottom:56px}
+#ug-root .ug-pcover.is-pause .ug-pcap b,#ug-root .ug-pcover.is-end .ug-pcap b{display:none}
+#ug-root .ug-pcover.is-pause .ug-pbtn{width:76px;height:76px;animation:none}
+@media (max-width:760px){#ug-root .ug-pbtn{width:68px;height:68px}#ug-root .ug-pbtn .ug-ico{width:26px;height:26px}#ug-root .ug-pcap b{font-size:15px}#ug-root .ug-pcover.is-pause .ug-phit,#ug-root .ug-pcover.is-end .ug-phit{bottom:48px}}
+
+/* ===== Миниатюры уроков ===== */
+#ug-root .ug-lrow{grid-template-columns:132px minmax(0,1fr) auto}
+#ug-root .ug-lthumb{position:relative;width:132px;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--line2);
+  background:radial-gradient(circle at 75% 20%,rgba(255,255,255,.10),transparent 55%),linear-gradient(135deg,#1a1440 0%,#0c1024 60%,#07080f 100%);background-size:cover;background-position:center}
+#ug-root .ug-lthumb::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px)}
+#ug-root .ug-lthumb.has-img::before{background:linear-gradient(180deg,rgba(5,7,13,.05),rgba(5,7,13,.45))}
+#ug-root .ug-lthumb.has-img .ug-lnum{display:none}
+#ug-root .ug-lnum{position:absolute;left:8px;bottom:4px;font-family:var(--f-logo);font-size:28px;line-height:1;color:var(--acc);opacity:.35;letter-spacing:-.02em}
+#ug-root .ug-lthumb .ug-lico{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;display:grid;place-items:center;border-radius:50%;
+  border:2px solid var(--acc);background:rgba(5,7,13,.65);color:var(--acc)}
+#ug-root .ug-lthumb .ug-lico .ug-ico{width:15px;height:15px}
+#ug-root .ug-ldur{position:absolute;right:5px;bottom:5px;padding:1px 5px;background:rgba(5,7,13,.8);font-family:var(--f-mono);font-size:10px;color:#fff;letter-spacing:.04em}
+#ug-root .ug-lrow:hover .ug-lthumb .ug-lico{transform:scale(1.1);box-shadow:0 0 18px -4px var(--acc)}
+#ug-root .ug-lrow.is-seen .ug-lthumb{opacity:.6}
+#ug-root .ug-lrow.is-seen .ug-lthumb .ug-lico{background:var(--green);border-color:var(--green);color:#04140b}
+#ug-root .ug-lrow.is-next{grid-template-columns:240px minmax(0,1fr) auto}
+#ug-root .ug-lrow.is-next .ug-lthumb{width:240px;border-color:var(--acc);box-shadow:0 0 24px -10px var(--acc)}
+#ug-root .ug-lrow.is-next .ug-lthumb .ug-lico{width:56px;height:56px;margin:-28px 0 0 -28px;background:var(--acc);color:#05070d}
+#ug-root .ug-lrow.is-next .ug-lthumb .ug-lico .ug-ico{width:22px;height:22px}
+#ug-root .ug-lrow.is-next .ug-lnum{font-size:44px}
+/* обложка урока на стартовом экране плеера */
+#ug-root .ug-pcover.is-start{background:radial-gradient(ellipse at 50% 58%,rgba(5,7,13,.7),rgba(5,7,13,.15) 60%),linear-gradient(180deg,rgba(5,7,13,.25),rgba(5,7,13,.75)),var(--pc-img,none) center/cover,radial-gradient(circle at 50% 42%,rgba(255,255,255,.05),transparent 55%),#05070d}
+@media (max-width:760px){
+  #ug-root .ug-lrow{grid-template-columns:96px minmax(0,1fr)}
+  #ug-root .ug-lthumb{width:96px}
+  #ug-root .ug-lthumb .ug-lico{width:30px;height:30px;margin:-15px 0 0 -15px}
+  #ug-root .ug-lnum{font-size:20px}
+  #ug-root .ug-lrow.is-next{grid-template-columns:minmax(0,1fr)}
+  #ug-root .ug-lrow.is-next .ug-lthumb{width:100%}
+  #ug-root .ug-lrow.is-next .ug-lbody{margin-top:2px}
+}
+@media (max-width:760px){#ug-root .ug-lrow.is-next .ug-ltag{grid-column:1}}
+#ug-root .ug-pcap b,#ug-root .ug-pcap span{text-shadow:0 2px 12px rgba(0,0,0,.9)}
+@media (max-width:760px){#ug-root .ug-lrow:not(.is-next) .ug-lnum,#ug-root .ug-lrow:not(.is-next) .ug-ldur{display:none}}
+/* уроки до прохождения первых квестов */
+#ug-root .ug-lgate{display:flex;gap:14px;align-items:flex-start;padding:16px;margin:4px 0 10px;border:1px dashed var(--line);background:rgba(255,255,255,.02)}
+#ug-root .ug-lgate > .ug-ico{width:22px;height:22px;flex:none;color:var(--acc);margin-top:2px}
+#ug-root .ug-lgate b{display:block;font-size:15px;color:#fff;margin-bottom:8px}
+#ug-root .ug-lgate ul{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+#ug-root .ug-lgate li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+#ug-root .ug-lgate li .ug-ico{width:14px;height:14px;flex:none}
+#ug-root .ug-lgate li.is-ok{color:var(--green)}
+#ug-root .ug-lrow.is-locked{cursor:default;opacity:.45;filter:grayscale(.6)}
+#ug-root .ug-lrow.is-locked:hover{background:none}
+#ug-root .ug-lrow.is-locked .ug-lthumb .ug-lico{border-color:var(--dim);color:var(--muted);background:rgba(5,7,13,.7)}
+#ug-root .ug-lrow.is-locked .ug-lthumb .ug-lico .ug-ico path{fill:none}
+#ug-root .ug-lessons.is-unlocked{animation:ug-lunlock 1.6s ease-out .2s both}
+@keyframes ug-lunlock{0%{box-shadow:0 0 0 0 var(--acc)}30%{box-shadow:0 0 0 2px var(--acc),0 0 60px -10px var(--acc)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+#ug-root .ug-lnote{display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:14px 16px;border:1px solid var(--acc);background:rgba(255,255,255,.03)}
+#ug-root .ug-lnote > .ug-ico{width:20px;height:20px;flex:none;color:var(--acc);margin-top:1px}
+#ug-root .ug-lnote b{display:block;font-size:15px;color:#fff;margin-bottom:4px}
+#ug-root .ug-lnote span{font-size:14px;color:var(--muted);line-height:1.5}
+#ug-root .ug-panel.is-flash{animation:ug-invflash 2.2s ease-out both}
+@keyframes ug-invflash{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}15%,45%{box-shadow:0 0 0 2px var(--acc),0 0 50px -6px var(--acc)}30%{box-shadow:0 0 0 1px var(--acc),0 0 20px -10px var(--acc)}}
+#ug-root .ug-panel.is-flash .ug-item.is-mine,#ug-root .ug-panel.is-flash .ug-item.is-new{animation:ug-invitem 2.2s ease-out both}
+@keyframes ug-invitem{15%,45%{transform:translateY(-3px);box-shadow:0 0 24px -4px var(--acc)}}
+/* на паузе наша кнопка стоит ровно в центре кадра, там же, где их кнопка; подпись ниже не сдвигает её */
+#ug-root .ug-pcover.is-pause .ug-pcap,#ug-root .ug-pcover.is-end .ug-pcap{position:absolute;left:0;right:0;top:calc(50% + 66px)}
+#ug-root .ug-pcover.is-pause .ug-pbtn,#ug-root .ug-pcover.is-end .ug-pbtn{box-shadow:0 0 0 18px #05070d,0 0 0 19px rgba(255,255,255,.1)}
+/* обложка без светлой каймы: рамка тёмная, картинка чуть шире краёв */
+#ug-root .ug-lthumb.has-img{border-color:#05070d;background-size:calc(100% + 4px) auto;background-position:center;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
