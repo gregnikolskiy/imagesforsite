@@ -1551,7 +1551,7 @@ var SKILLS = {
 };
 // «новый» скилл: неделя открыта, а игрок его ещё не открывал (отметка skill-… хранится вместе с ачивками)
 // скилл первой недели открывается вместе с уроками
-function skillOpen(w) { return weekOpen(w) && (w !== 'q1' || lessonsUnlocked()); }
+function skillOpen(w) { return w === 'q1' ? lessonsUnlocked() : weekOpen(w); }
 function skillFresh(w) { return !!SKILLS[w] && skillOpen(w) && seenIds().indexOf('ach:skill-' + w) < 0; }
 function skillItem(w, si) {
   var open = skillOpen(w), sk = SKILLS[w], fresh = skillFresh(w);
@@ -1585,7 +1585,7 @@ function skillInfo(i) {
     '<h2 class="ug-h2">' + (open ? 'Новый скилл' : 'Скрытый скилл') + '</h2>' +
     '<p class="ug-p">Скилл — это набор файлов, которые подгружаешь в ИИ, и она обретает новый навык. Каждую неделю в инвентаре появляется новый.</p>' +
     '<div class="ug-q-state ' + (open ? 'is-done' : '') + '" style="margin-top:18px">' + ico(open ? 'chip' : 'lock') + '<span>' +
-      (open ? 'Скилл открыт. Файлы лежат в канале потока.' : w === 'q1' && weekOpen(w) ? 'Откроется вместе с уроками, после прохождения первых 4 квестов.' : 'Откроется: ' + esc(tag.toLowerCase()) + '.') + '</span></div>');
+      (open ? 'Скилл открыт. Файлы лежат в канале потока.' : w === 'q1' ? 'Откроется вместе с уроками, после прохождения первых 4 квестов.' : 'Откроется: ' + esc(tag.toLowerCase()) + '.') + '</span></div>');
 }
 
 /* короткие квесты пролога засчитываются сами */
@@ -1821,6 +1821,8 @@ var LESSONS = {
 };
 var WEEKS = ['q1', 'q2', 'q3', 'q4'];
 function weekOpen(w) { return !!(S.settings[w] && S.settings[w].open); }
+// уроки первой недели открываются по первым квестам, без галочки в «Настройках»; недели 2–4 по галочке
+function lessonsWeekOpen(w) { return w === 'q1' || weekOpen(w); }
 function watched(id) { return ((S.player && S.player.lessons) || []).indexOf(id) >= 0; }
 function lessonById(id) {
   var r = null;
@@ -1854,15 +1856,15 @@ function lessonsPanel() {
   if (!S.lessonWeek) {
     // по умолчанию последняя открытая неделя, где есть уроки
     S.lessonWeek = 'q1';
-    WEEKS.forEach(function (w) { if (weekOpen(w) && (LESSONS[w] || []).length) S.lessonWeek = w; });
+    WEEKS.forEach(function (w) { if (lessonsWeekOpen(w) && (LESSONS[w] || []).length) S.lessonWeek = w; });
   }
   return '<section class="ug-panel ug-lessons" id="ug-lessons">' + lessonsInner() + '</section>';
 }
 function lessonsInner() {
-  var w = S.lessonWeek, list = LESSONS[w] || [], open = weekOpen(w);
+  var w = S.lessonWeek, list = LESSONS[w] || [], open = lessonsWeekOpen(w);
   var tabs = WEEKS.map(function (x, i) {
-    return '<button class="ug-ltab' + (x === w ? ' is-on' : '') + (weekOpen(x) ? '' : ' is-locked') + '" data-act="lesson-week" data-w="' + x + '">' +
-      (weekOpen(x) ? '' : ico('lock')) + 'Неделя ' + (i + 1) + '</button>';
+    return '<button class="ug-ltab' + (x === w ? ' is-on' : '') + (lessonsWeekOpen(x) ? '' : ' is-locked') + '" data-act="lesson-week" data-w="' + x + '">' +
+      (lessonsWeekOpen(x) ? '' : ico('lock')) + 'Неделя ' + (i + 1) + '</button>';
   }).join('');
   var done = list.filter(function (l) { return watched(l.id); }).length;
   var body, gate = !lessonsUnlocked();
