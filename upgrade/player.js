@@ -389,7 +389,10 @@ function questState(id) {
   if (st === 'выполнен') return 'done';
   if (st === 'на проверке') return 'review';
   if (st === 'доработать') return 'rework';
-  return S.settings[id] && S.settings[id].open ? 'active' : 'locked';
+  if (S.settings[id] && S.settings[id].open) return 'active';
+  // квест первой недели открывается вместе с её уроками, после первых квестов
+  if (id === 'q1' && lessonsUnlocked()) return 'active';
+  return 'locked';
 }
 function level() {
   var l = 0;
@@ -1351,12 +1354,10 @@ function screenDash() {
   for (var i = 1; i <= MAX_LVL / 10; i++) caps += '<span>' + i * 10 + '</span>';
 
   // текущий квест: первый не выполненный, который можно сдать или который ждёт проверки
+  // текущий квест: первый, который можно сдавать; если таких нет, первый на проверке
   var current = null;
-  QUESTS.forEach(function (q) {
-    if (current) return;
-    var st = questState(q.id);
-    if (st === 'active' || st === 'review' || st === 'rework') current = q;
-  });
+  QUESTS.forEach(function (q) { var st = questState(q.id); if (!current && (st === 'active' || st === 'rework')) current = q; });
+  QUESTS.forEach(function (q) { if (!current && questState(q.id) === 'review') current = q; });
   var activeHtml;
   if (current) {
     var qv = questView(current), st = questState(current.id), stateBox = '', actions = '';
