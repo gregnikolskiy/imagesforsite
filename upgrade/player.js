@@ -3,6 +3,8 @@
 
 /* ================= НАСТРОЙКИ ================= */
 var CONFIG = {
+  // метка сборки: вкладка сверяет её с version.txt рядом с player.js и сама перезагружается после обновления
+  BUILD: '202611160441',
   // URL веб-приложения Google Apps Script (…/exec). Пока пусто, страница работает в демо-режиме.
   API_URL: 'https://script.google.com/macros/s/AKfycbwVcbeIXzzxV-jEmRPfp96IFKkWv09D9UbQgwCD_JojGyjFizNrcEXsxx-NA_AVifsvdA/exec',
   // Адрес этой страницы, из него собирается личная ссылка игрока
@@ -1482,7 +1484,7 @@ function screenDash() {
   hydrateThumbs();
   if (lessonsReveal) waitCalm(revealLessons);
   var effects = function () {
-    var modalOpened = celebrateNew(seenBefore);
+    var modalOpened = celebrateNew(seenBefore) || pendingEvolution();
     var created = S.justCreated;
     if (created) { S.justCreated = false; setTimeout(function () { achievement('Создание персонажа · уровень ' + PROLOGUE_LVL); }, 700); }
     var levelUp = fromLvl < lvl;
@@ -1706,11 +1708,7 @@ function celebrateNew(seen) {
   fresh = fresh.filter(function (id) { return AUTO_IDS.indexOf(id) < 0; });
   if (!fresh.length) return false;
   var q = questView(QUESTS.filter(function (x) { return x.id === fresh[fresh.length - 1]; })[0]);
-  if (q.lvl) {
-    var g = genKey(), k = clsKey(), was = levelOf(seen), now = level();
-    var oldImg = levelImage(g, k, was), newImg = levelImage(g, k, now);
-    if (oldImg && newImg && oldImg !== newImg) { evolution(q, was, now, oldImg, newImg); return true; }
-  }
+  if (q.lvl && pendingEvolution()) return true;
   modal(burst() +
     '<div class="ug-kicker">// квест засчитан</div>' +
     '<div class="ug-levelup">' + (q.lvl ? 'LEVEL ' + level() : 'БОСС ПОВЕРЖЕН') + '</div>' +
@@ -1721,9 +1719,33 @@ function celebrateNew(seen) {
 }
 
 /* ---------- прокачка облика ---------- */
+// самый высокий порог облика (10, 20…), до которого дорос персонаж; 0 — стартовый облик
+function lookTier(lvl) {
+  var g = genKey(), k = clsKey(), best = 0;
+  Object.keys(CONFIG.LEVEL_IMAGES || {}).forEach(function (at) {
+    at = +at;
+    if (at > 1 && at <= lvl && at > best && ((CONFIG.LEVEL_IMAGES[at] || {})[g] || {})[k]) best = at;
+  });
+  return best;
+}
+// прокачку облика игрок должен увидеть один раз: отметка ach:evo-10 в списке «показано».
+// Если квест засчитали, пока у игрока была открыта старая версия кабинета, анимация покажется при следующем входе.
+function pendingEvolution() {
+  var tier = lookTier(level());
+  if (!tier || seenIds().indexOf('ach:evo-' + tier) >= 0) return false;
+  var g = genKey(), k = clsKey(), oldImg = levelImage(g, k, tier - 1), newImg = levelImage(g, k, tier);
+  if (!oldImg || !newImg || oldImg === newImg) return false;
+  var q = QUESTS.filter(function (x) { return x.lvl === tier; })[0], was = PROLOGUE_LVL;
+  QUESTS.forEach(function (x) { if (x.lvl && x.lvl < tier && x.lvl > was) was = x.lvl; });
+  evolution(q ? questView(q) : { title: 'Новый уровень' }, was, tier, oldImg, newImg);
+  return true;
+}
 // старый персонаж заряжается, вспышка, появляется новый, потом оба встают рядом: «до» и «после»
+var DEMO_EVO = false;
 function evolution(q, from, to, oldImg, newImg) {
   var c = (CLASSES[clsKey()] || CLASSES.packer).color, timers = [], parts = '', sparks = '';
+  if (S.nick && !DEMO_EVO) markSeen(seenIds().concat(['ach:evo-' + to]));
+  DEMO_EVO = false;
   for (var i = 0; i < 18; i++) {
     var a = (i / 18) * Math.PI * 2, r = 190 + (i % 3) * 40;
     parts += '<i style="--x:' + Math.round(Math.cos(a) * r) + 'px;--y:' + Math.round(Math.sin(a) * r) + 'px;animation-delay:' + (0.2 + (i % 6) * 0.2).toFixed(2) + 's"></i>';
@@ -2393,6 +2415,29 @@ function closeModal() {
   if (S.afterClose) { var fn = S.afterClose; S.afterClose = null; setTimeout(fn, 250); }
 }
 
+/* ---------- новая версия кабинета ---------- */
+// раз в 30 секунд сверяем метку сборки с version.txt; если вышло обновление, тихо перезагружаем вкладку,
+// пока на экране нет открытого окна (урок, сдача квеста, поздравление)
+var SELF_SRC = (document.currentScript && document.currentScript.src) || '';
+function checkUpdate() {
+  if (!CONFIG.BUILD || !/\/player\.js(\?|$)/.test(SELF_SRC) || !window.fetch) return;
+  fetch(SELF_SRC.replace(/player\.js.*$/, 'version.txt') + '?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.text() : ''; })
+    .then(function (v) {
+      v = (v || '').trim();
+      if (!/^\d{8,}$/.test(v) || v === CONFIG.BUILD || +v < +CONFIG.BUILD) return;
+      if (root.querySelector('.ug-modal') || S.screen !== 'dash') return;
+      // не перезагружаем по кругу, если GitHub ещё раздаёт старый файл
+      var key = 'ug_reload_' + v, last = 0;
+      try { last = +(sessionStorage.getItem(key) || 0); } catch (e) {}
+      if (Date.now() - last < 5 * 60000) return;
+      try { sessionStorage.setItem(key, String(Date.now())); } catch (e) {}
+      location.reload();
+    }).catch(function () {});
+}
+setInterval(checkUpdate, 30000);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) checkUpdate(); });
+
 /* ---------- обновление при возврате на вкладку ---------- */
 var lastRefresh = 0;
 function refresh() {
@@ -2517,7 +2562,7 @@ var ACTIONS = {
   'evo-skip': function () { if (S.evoSkip) S.evoSkip(); },
   'demo-evo': function () {
     var g = genKey(), k = clsKey(), a = levelImage(g, k, 5), b = levelImage(g, k, 10);
-    if (a && b) evolution({ title: 'Анализ проекта' }, 5, 10, a, b);
+    if (a && b) { DEMO_EVO = true; evolution({ title: 'Анализ проекта' }, 5, 10, a, b); }
   },
   'demo-ach': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; p.achievements = p.achievements || []; var next = ACHIEVEMENTS.filter(function (a) { return p.achievements.indexOf(a.id) < 0; })[0]; if (next) p.achievements.push(next.id); }); },
   'demo-weapon': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.weapon = 'Автоматон «Искра»'; }); },
