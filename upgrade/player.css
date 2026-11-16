@@ -977,3 +977,96 @@
 #ug-root .ug-lthumb.has-img{border-color:#05070d;background-size:calc(100% + 4px) auto;background-position:center;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
 /* телефон: обложка только рисуется, касание проходит в плеер Boomstream */
 #ug-root .ug-pcover.is-touch,#ug-root .ug-pcover.is-touch .ug-phit{pointer-events:none}
+
+/* ---------- прокачка облика ---------- */
+#ug-root .ug-evo-dialog{max-width:660px;padding-top:30px}
+#ug-root .ug-evo{position:relative}
+#ug-root .ug-evo-lvl{font-family:var(--f-head);font-weight:900;line-height:1;margin:6px 0 10px;color:#fff;display:flex;align-items:baseline;justify-content:center;gap:12px}
+#ug-root .ug-evo-lvl-k{font-size:clamp(22px,4.5vw,30px);letter-spacing:.08em;color:rgba(255,255,255,.75)}
+#ug-root .ug-evo-lvl b{font-size:clamp(44px,10vw,68px);color:var(--cc);text-shadow:0 0 24px var(--cc);display:inline-block;min-width:1.4em;font-variant-numeric:tabular-nums}
+#ug-root .ug-evo.is-charge .ug-evo-lvl b{animation:ug-evo-beat .32s ease-in-out infinite}
+#ug-root .ug-evo.is-reveal .ug-evo-lvl b{animation:ug-evo-pop .6s cubic-bezier(.2,1.6,.4,1) both;color:#fff;text-shadow:0 0 18px var(--cc),0 0 44px var(--cc)}
+@keyframes ug-evo-beat{50%{transform:scale(1.12)}}
+@keyframes ug-evo-pop{from{transform:scale(1.8)}}
+
+#ug-root .ug-evo-stage{position:relative;width:100%;aspect-ratio:10/9;max-height:min(400px,50vh);margin:4px auto 0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#ug-root .ug-evo-card{position:absolute;top:0;left:50%;height:100%;aspect-ratio:3/4;transform:translateX(-50%);border:2px solid var(--cc);background:#0b0d1a;
+  box-shadow:0 0 0 4px rgba(5,6,11,.9),0 0 40px -6px var(--cc);transition:left .6s cubic-bezier(.6,0,.2,1),transform .6s cubic-bezier(.6,0,.2,1),filter .6s,opacity .3s;z-index:2}
+#ug-root .ug-evo-card img{display:block;width:100%;height:100%;object-fit:cover}
+#ug-root .ug-evo-card::before,#ug-root .ug-evo-card::after{content:"";position:absolute;width:18px;height:18px;border:3px solid var(--cc);z-index:2}
+#ug-root .ug-evo-card::before{left:-8px;top:-8px;border-right:0;border-bottom:0}
+#ug-root .ug-evo-card::after{right:-8px;bottom:-8px;border-left:0;border-top:0}
+#ug-root .ug-evo-tag{position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);white-space:nowrap;font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:5px 10px;background:#05060b;border:1px solid var(--cc);color:#fff;opacity:0;transition:opacity .3s .35s}
+#ug-root .ug-evo-card.is-new{opacity:0}
+#ug-root .ug-evo-card.is-old{animation:ug-fade .25s both}
+
+/* лучи, кольцо, частицы */
+#ug-root .ug-evo-rays{position:absolute;left:50%;top:50%;width:170%;aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none;opacity:0;transition:opacity 1s;
+  background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--cc) 40%,transparent) 0deg 6deg,transparent 6deg 18deg);
+  -webkit-mask:radial-gradient(circle,#000 12%,transparent 58%);mask:radial-gradient(circle,#000 12%,transparent 58%);animation:ug-evo-spin 24s linear infinite}
+#ug-root .ug-evo-ring{position:absolute;left:50%;top:50%;width:82%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed color-mix(in srgb,var(--cc) 55%,transparent);opacity:.35;pointer-events:none;animation:ug-evo-spin 14s linear infinite}
+@keyframes ug-evo-spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+#ug-root .ug-evo-parts i,#ug-root .ug-evo-sparks i{position:absolute;left:50%;top:50%;width:6px;height:6px;background:var(--cc);box-shadow:0 0 10px var(--cc);opacity:0;pointer-events:none;z-index:3}
+#ug-root .ug-evo-parts i:nth-child(3n){background:#fff}
+#ug-root .ug-evo-sparks i:nth-child(2n){background:#fff;width:8px;height:8px}
+#ug-root .ug-evo-sparks i:nth-child(3n){background:#ffd23f;box-shadow:0 0 10px #ffd23f}
+@keyframes ug-evo-in{from{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y)));opacity:0}30%{opacity:1}to{transform:translate(-50%,-50%) scale(.4);opacity:0}}
+#ug-root .ug-evo-flash{position:absolute;left:50%;top:50%;width:240%;aspect-ratio:1;transform:translate(-50%,-50%) scale(.2);border-radius:50%;pointer-events:none;opacity:0;z-index:5;
+  background:radial-gradient(circle,#fff 0 18%,color-mix(in srgb,var(--cc) 70%,#fff) 30%,transparent 62%)}
+#ug-root .ug-evo-arrow{position:absolute;left:42%;top:50%;transform:translate(-50%,-50%) scale(.5);color:var(--cc);opacity:0;transition:opacity .3s .35s,transform .4s .35s;z-index:3;filter:drop-shadow(0 0 8px var(--cc))}
+#ug-root .ug-evo-arrow .ug-ico{width:34px;height:34px;stroke-width:2.6}
+
+/* зарядка: старый облик трясёт и раскаляет */
+#ug-root .ug-evo.is-charge .ug-evo-card.is-old{animation:ug-evo-charge 1.6s ease-in both,ug-evo-shake .09s linear infinite}
+@keyframes ug-evo-charge{to{filter:brightness(2.3) saturate(1.6);box-shadow:0 0 0 4px rgba(5,6,11,.9),0 0 90px 10px var(--cc)}}
+@keyframes ug-evo-shake{0%{translate:0 0}25%{translate:2px -1px}50%{translate:-2px 1px}75%{translate:1px 2px}}
+#ug-root .ug-evo.is-charge .ug-evo-parts i{animation:ug-evo-in .8s ease-in infinite}
+#ug-root .ug-evo.is-charge .ug-evo-ring{opacity:.9;animation-duration:1.4s;border-width:3px}
+#ug-root .ug-evo.is-charge .ug-evo-rays{opacity:.5;transition-duration:1.6s}
+
+/* вспышка */
+#ug-root .ug-evo.is-flash .ug-evo-flash{animation:ug-evo-flash .9s ease-out both}
+@keyframes ug-evo-flash{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}25%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.15)}}
+#ug-root .ug-evo.is-flash .ug-evo-card.is-old,#ug-root .ug-evo.is-reveal .ug-evo-card.is-old{opacity:0;animation:none}
+#ug-root .ug-evo.is-reveal .ug-evo-flash{animation:ug-evo-flash .9s ease-out both;animation-delay:-.3s}
+
+/* новый облик */
+#ug-root .ug-evo.is-reveal .ug-evo-card.is-new{opacity:1;animation:ug-evo-reveal .7s cubic-bezier(.2,.9,.3,1) both}
+@keyframes ug-evo-reveal{from{transform:translateX(-50%) scale(1.25);filter:brightness(3) saturate(0)}to{transform:translateX(-50%) scale(1);filter:none}}
+#ug-root .ug-evo.is-reveal .ug-evo-rays{opacity:1;animation-duration:10s}
+#ug-root .ug-evo.is-reveal .ug-evo-ring{opacity:.6}
+#ug-root .ug-evo.is-reveal .ug-evo-sparks i{animation:ug-spark 1.2s ease-out both}
+
+/* до и после */
+#ug-root .ug-evo.is-compare .ug-evo-card,#ug-root .ug-evo.is-done .ug-evo-card{opacity:1;animation:none}
+#ug-root .ug-evo.is-compare .is-old,#ug-root .ug-evo.is-done .is-old{left:24%;transform:translateX(-50%) scale(.6);filter:grayscale(.5) brightness(.88);box-shadow:0 0 0 4px rgba(5,6,11,.9);border-color:rgba(255,255,255,.3)}
+#ug-root .ug-evo.is-compare .is-old::before,#ug-root .ug-evo.is-compare .is-old::after,#ug-root .ug-evo.is-done .is-old::before,#ug-root .ug-evo.is-done .is-old::after{border-color:rgba(255,255,255,.35)}
+#ug-root .ug-evo.is-compare .is-old .ug-evo-tag,#ug-root .ug-evo.is-done .is-old .ug-evo-tag{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.75);font-size:18px}
+#ug-root .ug-evo.is-compare .is-new,#ug-root .ug-evo.is-done .is-new{left:68%;transform:translateX(-50%) scale(.94)}
+#ug-root .ug-evo.is-compare .ug-evo-tag,#ug-root .ug-evo.is-done .ug-evo-tag{opacity:1}
+#ug-root .ug-evo.is-compare .ug-evo-arrow,#ug-root .ug-evo.is-done .ug-evo-arrow{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#ug-root .ug-evo.is-compare .ug-evo-rays,#ug-root .ug-evo.is-done .ug-evo-rays{opacity:.55;left:68%}
+#ug-root .ug-evo.is-compare .ug-evo-ring,#ug-root .ug-evo.is-done .ug-evo-ring{opacity:0}
+
+/* финальный текст и кнопка: место занято с самого начала, чтобы окно не прыгало */
+#ug-root .ug-evo-end{margin-top:26px;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .35s,transform .35s}
+#ug-root .ug-evo.is-done .ug-evo-end{opacity:1;transform:none;pointer-events:auto}
+#ug-root .ug-evo.is-done .ug-evo-stage{cursor:default}
+@media (max-width:520px){
+  #ug-root .ug-evo-dialog{padding-left:14px;padding-right:14px}
+  #ug-root .ug-evo-tag{font-size:10px;letter-spacing:.08em;padding:4px 7px}
+  #ug-root .ug-evo-arrow .ug-ico{width:24px;height:24px}
+  #ug-root .ug-evo.is-compare .is-old,#ug-root .ug-evo.is-done .is-old{left:22%;transform:translateX(-50%) scale(.5)}
+  #ug-root .ug-evo.is-compare .is-new,#ug-root .ug-evo.is-done .is-new{left:66%;transform:translateX(-50%) scale(.78)}
+  #ug-root .ug-evo.is-compare .ug-evo-rays,#ug-root .ug-evo.is-done .ug-evo-rays{left:66%}
+  #ug-root .ug-evo-arrow{left:39.5%}
+  #ug-root .ug-evo.is-compare .is-old .ug-evo-tag,#ug-root .ug-evo.is-done .is-old .ug-evo-tag{font-size:17px}
+  #ug-root .ug-evo.is-compare .is-new .ug-evo-tag,#ug-root .ug-evo.is-done .is-new .ug-evo-tag{font-size:12px}
+}
+@media (max-height:780px){
+  #ug-root .ug-evo-dialog{padding-top:22px;padding-bottom:18px}
+  #ug-root .ug-evo-stage{max-height:min(400px,44vh)}
+  #ug-root .ug-evo-lvl{margin:2px 0 8px}
+  #ug-root .ug-evo-end{margin-top:18px}
+  #ug-root .ug-evo-end .ug-h2{margin-bottom:6px}
+}
