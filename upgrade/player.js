@@ -14,7 +14,7 @@ var CONFIG = {
   IMAGES: { m: { packer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/class-m-packer.jpg', content: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/class-m-content.jpg', strategist: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/class-m-strategist.jpg' }, f: { packer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/class-f-packer.jpg', content: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/class-f-content.jpg', strategist: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/class-f-strategist.jpg' } },
   // LEVEL_IMAGES — облик персонажа по уровням: с какого уровня какая картинка.
   // Профиль и экран «Персонаж создан». Уровень 1–9 — стартовый облик; 10, 20… добавишь позже.
-  LEVEL_IMAGES: { 1: { m: { packer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-m-packer.jpg', content: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-m-content.jpg', strategist: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-m-strategist.jpg' }, f: { packer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-f-packer.jpg', content: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-f-content.jpg', strategist: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-f-strategist.jpg' } } },
+  LEVEL_IMAGES: { 1: { m: { packer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-m-packer.jpg', content: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-m-content.jpg', strategist: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-m-strategist.jpg' }, f: { packer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-f-packer.jpg', content: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-f-content.jpg', strategist: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl1-f-strategist.jpg' } }, 10: { m: { packer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl10-m-packer.jpg', content: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl10-m-content.jpg', strategist: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl10-m-strategist.jpg' }, f: { packer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl10-f-packer.jpg', content: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl10-f-content.jpg', strategist: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/lvl10-f-strategist.jpg' } } },
   // Картинки на экране выбора пола (необязательно)
   GENDER_IMAGES: { m: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/gender-m.jpg', f: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/gender-f.jpg' },
   // Фоны: город (вход и загрузка), деревня (лор), родная планета персонажа (окно «История персонажа»)
@@ -188,6 +188,7 @@ var ICONS = {
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   lock: '<path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="5" y="11" width="14" height="10" rx="1"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  arrow: '<path d="M4 12h15M13 6l6 6-6 6"/>',
   hourglass: '<path d="M7 3h10M7 21h10M8 3c0 5 8 6 8 9s-8 4-8 9M16 3c0 5-8 6-8 9s8 4 8 9"/>',
   alert: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>',
   diamond: '<path d="M12 3l9 9-9 9-9-9z"/>',
@@ -702,7 +703,7 @@ var music = (function () {
     g.cancelScheduledValues(t); g.setValueAtTime(VOL, t);
     g.linearRampToValueAtTime(VOL * 0.45, t + 0.03); g.linearRampToValueAtTime(VOL, t + 0.45);
   }
-  function sfx(kind) {
+  function sfx(kind, arg) {
     if (!sfxReady()) return;
     var t = ctx.currentTime + 0.004;
     duck(t);
@@ -743,6 +744,43 @@ var music = (function () {
       // отскок молотка: второй удар тише
       tick(t + 0.16, 3000, 0.05, 0.35, 0.9);
       [[612, 0.9, 0.04], [1689, 0.6, 0.03]].forEach(function (p) { tone(p[0], p[0], t + 0.16, p[1], p[2], 'sine', true); });
+      return;
+    }
+    if (kind === 'evo-charge') {    // прокачка облика: зарядка, гул нарастает 1,6 секунды
+      var D = 1.6, o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(55, t); o.frequency.exponentialRampToValueAtTime(220, t + D);
+      f.type = 'lowpass'; f.Q.value = 6; f.frequency.setValueAtTime(200, t); f.frequency.exponentialRampToValueAtTime(3200, t + D);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + D * 0.9); g.gain.linearRampToValueAtTime(0.0001, t + D + 0.05);
+      o.connect(f); f.connect(g); g.connect(sfxOut); g.connect(sfxRev); o.start(t); o.stop(t + D + 0.1);
+      var o2 = ctx.createOscillator(), g2 = ctx.createGain();
+      o2.type = 'sine'; o2.frequency.setValueAtTime(110, t); o2.frequency.exponentialRampToValueAtTime(880, t + D);
+      g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(0.08, t + D); g2.gain.linearRampToValueAtTime(0.0001, t + D + 0.05);
+      o2.connect(g2); g2.connect(sfxOut); o2.start(t); o2.stop(t + D + 0.1);
+      whoosh(t + 0.3, D - 0.3, 200, 9000, 0.14);
+      return;
+    }
+    if (kind === 'evo-step') {      // каждый новый уровень на счётчике
+      var n = arguments[1] || 0, scale = [523.3, 587.3, 659.3, 784, 880, 1046.5, 1174.7, 1318.5, 1568, 1760];
+      var fr = scale[Math.min(n, scale.length - 1)];
+      tone(fr, fr, t, 0.22, 0.07, 'square', true);
+      tone(fr * 2, fr * 2, t, 0.12, 0.03, 'sine', true);
+      tick(t, 5000, 0.03, 0.3, 2);
+      return;
+    }
+    if (kind === 'evo-boom') {      // вспышка: удар, взрыв и большой аккорд
+      tone(140, 32, t, 0.9, 0.9, 'sine');
+      tone(70, 28, t, 1.2, 0.5, 'triangle');
+      var src = ctx.createBufferSource(); src.buffer = noiseBuf;
+      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(9000, t); lp.frequency.exponentialRampToValueAtTime(300, t + 1.2);
+      var ng = ctx.createGain(); ng.gain.setValueAtTime(0.5, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+      src.connect(lp); lp.connect(ng); ng.connect(sfxOut); ng.connect(sfxRev); src.start(t); src.stop(t + 1.4);
+      [261.6, 392, 523.3, 659.3, 784, 1046.5, 1318.5].forEach(function (fq, i) {
+        tone(fq, fq, t + 0.05 + i * 0.01, 3.2, 0.045, 'sine', true);
+        tone(fq * 1.005, fq * 1.005, t + 0.05, 3, 0.025, 'triangle', true);
+      });
+      // фанфара поверх аккорда
+      [[784, 0.35], [1046.5, 0.5], [1318.5, 0.65], [1568, 0.8]].forEach(function (p) { tone(p[0], p[0], t + p[1], 0.9, 0.05, 'square', true); });
+      tick(t + 0.05, 8000, 0.6, 0.15, 0.6);
       return;
     }
     if (kind === 'achieve') {       // ачивка: широкое сияние
@@ -1668,6 +1706,11 @@ function celebrateNew(seen) {
   fresh = fresh.filter(function (id) { return AUTO_IDS.indexOf(id) < 0; });
   if (!fresh.length) return false;
   var q = questView(QUESTS.filter(function (x) { return x.id === fresh[fresh.length - 1]; })[0]);
+  if (q.lvl) {
+    var g = genKey(), k = clsKey(), was = levelOf(seen), now = level();
+    var oldImg = levelImage(g, k, was), newImg = levelImage(g, k, now);
+    if (oldImg && newImg && oldImg !== newImg) { evolution(q, was, now, oldImg, newImg); return true; }
+  }
   modal(burst() +
     '<div class="ug-kicker">// квест засчитан</div>' +
     '<div class="ug-levelup">' + (q.lvl ? 'LEVEL ' + level() : 'БОСС ПОВЕРЖЕН') + '</div>' +
@@ -1675,6 +1718,58 @@ function celebrateNew(seen) {
     '<p class="ug-p">' + (q.lvl ? 'Гриша утвердил квест, и твой персонаж достиг уровня ' + level() + '.' : 'Гриша утвердил финальный квест. Игра пройдена.') + '</p>' +
     '<div class="ug-dialog-actions"><button class="ug-btn" data-act="close">Отлично</button></div>', null, 'ug-congrats');
   return true;
+}
+
+/* ---------- прокачка облика ---------- */
+// старый персонаж заряжается, вспышка, появляется новый, потом оба встают рядом: «до» и «после»
+function evolution(q, from, to, oldImg, newImg) {
+  var c = (CLASSES[clsKey()] || CLASSES.packer).color, timers = [], parts = '', sparks = '';
+  for (var i = 0; i < 18; i++) {
+    var a = (i / 18) * Math.PI * 2, r = 190 + (i % 3) * 40;
+    parts += '<i style="--x:' + Math.round(Math.cos(a) * r) + 'px;--y:' + Math.round(Math.sin(a) * r) + 'px;animation-delay:' + (0.2 + (i % 6) * 0.2).toFixed(2) + 's"></i>';
+  }
+  for (var j = 0; j < 22; j++) {
+    var b = (j / 22) * Math.PI * 2, rr = 140 + (j % 4) * 34;
+    sparks += '<i style="--x:' + Math.round(Math.cos(b) * rr) + 'px;--y:' + Math.round(Math.sin(b) * rr) + 'px;animation-delay:' + (j % 5) * 0.03 + 's"></i>';
+  }
+  modal('<div class="ug-evo is-intro" style="--cc:' + c + '">' +
+    '<div class="ug-kicker">// квест засчитан · «' + esc(q.title) + '»</div>' +
+    '<div class="ug-evo-lvl"><span class="ug-evo-lvl-k">LEVEL</span> <b id="ug-evo-n">' + from + '</b></div>' +
+    '<div class="ug-evo-stage" data-act="evo-skip">' +
+      '<div class="ug-evo-rays"></div><div class="ug-evo-ring"></div>' +
+      '<div class="ug-evo-parts">' + parts + '</div>' +
+      '<div class="ug-evo-card is-old"><img src="' + esc(oldImg) + '" alt=""><div class="ug-evo-tag">до · ур. ' + from + '</div></div>' +
+      '<div class="ug-evo-arrow">' + ico('arrow') + '</div>' +
+      '<div class="ug-evo-card is-new"><img src="' + esc(newImg) + '" alt=""><div class="ug-evo-tag">после · ур. ' + to + '</div></div>' +
+      '<div class="ug-evo-sparks">' + sparks + '</div><div class="ug-evo-flash"></div>' +
+    '</div>' +
+    '<div class="ug-evo-end">' +
+      '<h2 class="ug-h2">Новый облик</h2>' +
+      '<p class="ug-p">Гриша утвердил квест, персонаж достиг ' + to + ' уровня и прокачался. Так он выглядел раньше, а так выглядит теперь.</p>' +
+      '<div class="ug-dialog-actions"><button class="ug-btn" data-act="close">Вперёд</button></div>' +
+    '</div>' +
+  '</div>', c, 'ug-congrats ug-evo-dialog');
+  var box = root.querySelector('.ug-evo'), num = root.querySelector('#ug-evo-n');
+  var phase = function (p) { if (box) box.className = 'ug-evo is-' + p; };
+  var at = function (ms, fn) { timers.push(setTimeout(fn, ms)); };
+  music.hold(true);
+  at(250, function () { phase('charge'); music.sfx('evo-charge'); });
+  var steps = to - from;
+  for (var s2 = 1; s2 <= steps; s2++) (function (s3) {
+    at(250 + Math.round(1550 * Math.pow(s3 / steps, 0.8)) - 100, function () { if (num) num.textContent = from + s3; music.sfx('evo-step', s3); });
+  })(s2);
+  at(1850, function () { phase('flash'); music.sfx('evo-boom'); });
+  at(2100, function () { phase('reveal'); });
+  at(2900, function () { phase('compare'); });
+  at(3300, function () { phase('done'); music.hold(false); });
+  S.evoSkip = function () {
+    if (!box || box.classList.contains('is-done')) return;
+    timers.forEach(clearTimeout); timers = [];
+    if (num) num.textContent = to;
+    phase('compare'); at(500, function () { phase('done'); });
+    music.hold(false);
+  };
+  S.afterClose = function () { timers.forEach(clearTimeout); music.hold(false); S.evoSkip = null; };
 }
 
 /* ---------- ачивки ---------- */
@@ -2336,6 +2431,7 @@ function demoPanel() {
     '<button data-act="demo-pet">Выдать питомца</button>' +
     '<button data-act="demo-weapon">Выдать автоматона</button>' +
     '<button data-act="demo-ach">Выдать следующую ачивку</button>' +
+    '<button data-act="demo-evo">Показать прокачку облика</button>' +
     '<button data-act="demo-reset">Сбросить всё</button></div>';
   root.appendChild(d);
 }
@@ -2418,6 +2514,11 @@ var ACTIONS = {
   'demo-rework': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; Object.keys(p.quests).forEach(function (k) { if (p.quests[k] === 'на проверке') p.quests[k] = 'доработать'; }); }); },
   'demo-week': function () { demoMutate(function (db) { for (var i = 0; i < QUESTS.length; i++) { var id = QUESTS[i].id; if (!db.settings[id].open) { db.settings[id].open = true; db.settings[id].deadline = 'вс, 23:59 МСК'; break; } } }); },
   'demo-pet': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.pet = 'Кибер-лис'; }); },
+  'evo-skip': function () { if (S.evoSkip) S.evoSkip(); },
+  'demo-evo': function () {
+    var g = genKey(), k = clsKey(), a = levelImage(g, k, 5), b = levelImage(g, k, 10);
+    if (a && b) evolution({ title: 'Анализ проекта' }, 5, 10, a, b);
+  },
   'demo-ach': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; p.achievements = p.achievements || []; var next = ACHIEVEMENTS.filter(function (a) { return p.achievements.indexOf(a.id) < 0; })[0]; if (next) p.achievements.push(next.id); }); },
   'demo-weapon': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.weapon = 'Автоматон «Искра»'; }); },
   'demo-reset': function () { store.del('ug_demo_db'); store.del('ug_nick'); if (S.nick) store.del('ug_seen_' + S.nick); setHash(''); location.reload(); }
