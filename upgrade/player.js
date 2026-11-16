@@ -28,7 +28,7 @@ var CONFIG = {
   // куда ведёт кнопка «Забрать в чате» у нового скилла; пусто: в чат потока
   SKILLS_URL: 'https://t.me/c/3987431320/2',
   // картинки ачивок: квадратные, рамку и свечение рисует страница
-  ACH_IMAGES: { pioneer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/ach-pioneer.jpg' },
+  ACH_IMAGES: { pioneer: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/ach-pioneer.jpg', vanguard: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/ach-vanguard.jpg', saturday: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/ach-saturday.jpg' },
   // Музыка на время создания персонажа. Пусто = встроенный синтезаторный трек.
   // Можно вставить ссылку на mp3 с бесплатной лицензией.
   MUSIC_URL: ''
@@ -1680,12 +1680,18 @@ function celebrateNew(seen) {
 /* ---------- ачивки ---------- */
 // key: как Гриша пишет ачивку в колонке «ачивки» таблицы
 var ACHIEVEMENTS = [
-  { id: 'pioneer', key: 'первопроходец', title: 'Первопроходец', desc: 'За выполнение всех доступных квестов в первый день запуска «Апгрейда».' }
+  { id: 'pioneer', key: 'первопроходец', title: 'Первопроходец', desc: 'За выполнение всех доступных квестов в первый день запуска «Апгрейда».' },
+  { id: 'vanguard', key: 'авангард', title: 'Авангард', desc: 'За одно из трёх первых мест в сдаче главного квеста недели.' },
+  { id: 'saturday', key: 'субботний апгрейд', alias: ['субботний'], title: 'Субботний апгрейд', desc: 'За два главных урока первой недели, просмотренные в выходные.' }
 ];
 var BOARD_MIN = 4; // сколько ячеек на доске минимум, пустые закрыты замком
 function myAchievements() {
   var got = ((S.player && S.player.achievements) || []).map(function (x) { return String(x).trim().toLowerCase(); });
-  return ACHIEVEMENTS.filter(function (a) { return got.indexOf(a.id) >= 0 || got.indexOf(a.key) >= 0; });
+  var norm = function (x) { return x.replace(/ё/g, 'е').replace(/[«»"]/g, '').replace(/\s+/g, ' ').trim(); };
+  got = got.map(norm);
+  return ACHIEVEMENTS.filter(function (a) {
+    return [a.id, a.key].concat(a.alias || []).some(function (k) { return got.indexOf(norm(k)) >= 0; });
+  });
 }
 function achById(id) { return ACHIEVEMENTS.filter(function (a) { return a.id === id; })[0]; }
 // пиксельный восьмиугольник: углы срезаны ступеньками
@@ -2329,7 +2335,7 @@ function demoPanel() {
     '<button data-act="demo-week">Открыть следующую неделю</button>' +
     '<button data-act="demo-pet">Выдать питомца</button>' +
     '<button data-act="demo-weapon">Выдать автоматона</button>' +
-    '<button data-act="demo-ach">Выдать «Первопроходца»</button>' +
+    '<button data-act="demo-ach">Выдать следующую ачивку</button>' +
     '<button data-act="demo-reset">Сбросить всё</button></div>';
   root.appendChild(d);
 }
@@ -2412,7 +2418,7 @@ var ACTIONS = {
   'demo-rework': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; Object.keys(p.quests).forEach(function (k) { if (p.quests[k] === 'на проверке') p.quests[k] = 'доработать'; }); }); },
   'demo-week': function () { demoMutate(function (db) { for (var i = 0; i < QUESTS.length; i++) { var id = QUESTS[i].id; if (!db.settings[id].open) { db.settings[id].open = true; db.settings[id].deadline = 'вс, 23:59 МСК'; break; } } }); },
   'demo-pet': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.pet = 'Кибер-лис'; }); },
-  'demo-ach': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) { p.achievements = p.achievements || []; if (p.achievements.indexOf('pioneer') < 0) p.achievements.push('pioneer'); } }); },
+  'demo-ach': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; p.achievements = p.achievements || []; var next = ACHIEVEMENTS.filter(function (a) { return p.achievements.indexOf(a.id) < 0; })[0]; if (next) p.achievements.push(next.id); }); },
   'demo-weapon': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.weapon = 'Автоматон «Искра»'; }); },
   'demo-reset': function () { store.del('ug_demo_db'); store.del('ug_nick'); if (S.nick) store.del('ug_seen_' + S.nick); setHash(''); location.reload(); }
 };
