@@ -4,7 +4,7 @@
 /* ================= НАСТРОЙКИ ================= */
 var CONFIG = {
   // метка сборки: вкладка сверяет её с version.txt рядом с player.js и сама перезагружается после обновления
-  BUILD: '202611240808',
+  BUILD: '202611240819',
   // URL веб-приложения Google Apps Script (…/exec). Пока пусто, страница работает в демо-режиме.
   API_URL: 'https://script.google.com/macros/s/AKfycbwVcbeIXzzxV-jEmRPfp96IFKkWv09D9UbQgwCD_JojGyjFizNrcEXsxx-NA_AVifsvdA/exec',
   // Адрес этой страницы, из него собирается личная ссылка игрока
@@ -1783,6 +1783,21 @@ function chapterWindow(n, part) {
     '<div class="ug-dialog-actions"><button class="ug-btn" data-act="' + (part === 'ferry' ? 'chapter-board' : 'close') + '" data-n="' + n + '">' + esc(w.btn) + '</button></div>',
     part === 'hall' ? c : null, 'ug-origin ug-chapter');
 }
+// ждём, пока картинка окна догрузится, чтобы окно открылось сразу с ней (но не дольше limit мс)
+function imgReady(urls, cb, limit) {
+  var left = urls.filter(function (u) { return u && !/^data:/.test(u) && coverOk[u] !== true; }), done = false;
+  var finish = function () { if (!done) { done = true; cb(); } };
+  if (!left.length) return finish();
+  var n = left.length;
+  left.forEach(function (u) {
+    var im = new Image();
+    im.onload = function () { coverOk[u] = true; var go = function () { if (--n <= 0) finish(); }; if (im.decode) im.decode().then(go, go); else go(); };
+    im.onerror = function () { if (--n <= 0) finish(); };
+    im.src = u;
+  });
+  setTimeout(finish, limit || 6000);
+}
+function chapterImgs(n) { var c = (CONFIG.CHAPTER_IMAGES || {})[n] || {}; return [c.ferry, c.hall]; }
 function chapterOpen(n) {
   if (!n || !CHAPTERS[n]) return;
   if (seenIds().indexOf('ach:ch-' + n) < 0) markSeen(seenIds().concat(['ach:ch-' + n]));
@@ -1792,7 +1807,7 @@ function chapterOpen(n) {
 function chapterAuto() {
   var n = chapterPending(); if (!n) return;
   if (root.querySelector('.ug-modal')) { waitCalm(chapterAuto); return; }
-  chapterOpen(n);
+  imgReady(chapterImgs(n), function () { if (!root.querySelector('.ug-modal') && chapterPending()) chapterOpen(n); else if (chapterPending()) waitCalm(chapterAuto); });
 }
 
 /* ---------- прокачка облика ---------- */
@@ -2752,12 +2767,13 @@ var ACTIONS = {
   },
   'demo-pet': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.pet = 'Кибер-лис'; }); },
   'evo-skip': function () { if (S.evoSkip) S.evoSkip(); },
-  'chapter': function (el) { chapterOpen(+el.getAttribute('data-n')); },
+  'chapter': function (el) { var n = +el.getAttribute('data-n'); imgReady(chapterImgs(n), function () { chapterOpen(n); }, 4000); },
   'chapter-board': function (el) {
     var n = +el.getAttribute('data-n'), d = root.querySelector('.ug-chapter');
     music.sfx('achieve');
     if (d) d.classList.add('is-leaving');
-    setTimeout(function () { chapterWindow(n, 'hall'); }, 450);
+    var t0 = Date.now();
+    imgReady([chapterImgs(n)[1]], function () { setTimeout(function () { chapterWindow(n, 'hall'); }, Math.max(0, 450 - (Date.now() - t0))); }, 4000);
   },
   'demo-evo': function () {
     var g = genKey(), k = clsKey(), a = levelImage(g, k, 5), b = levelImage(g, k, 10);
@@ -2855,8 +2871,11 @@ var preloaded = [];
   // миниатюры уроков лёгкие (300 px), качаем их сразу; полные обложки для плеера в самом конце
   var thumbs = [], fulls = [];
   WEEKS.forEach(function (w) { (LESSONS[w] || []).forEach(function (l) { thumbs.push(coverUrl(l)); fulls.push(coverFull(l)); }); });
-  var flow = [CONFIG.CITY_IMAGE].concat(thumbs, [CONFIG.VILLAGE_IMAGE, CONFIG.GENDER_IMAGES.m, CONFIG.GENDER_IMAGES.f], cls, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], lvl, fulls);
-  if (startNick) flow = [CONFIG.CITY_IMAGE].concat(lvl, thumbs, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], fulls, flow);
+  // картинки глав сюжета: окно главы открывается сразу после входа, поэтому качаем их первыми
+  var chap = [];
+  Object.keys(CONFIG.CHAPTER_IMAGES || {}).forEach(function (n) { var c = CONFIG.CHAPTER_IMAGES[n]; chap.push(c.ferry, c.hall); });
+  var flow = [CONFIG.CITY_IMAGE].concat(chap, thumbs, [CONFIG.VILLAGE_IMAGE, CONFIG.GENDER_IMAGES.m, CONFIG.GENDER_IMAGES.f], cls, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], lvl, fulls);
+  if (startNick) flow = [CONFIG.CITY_IMAGE].concat(chap, lvl, thumbs, [CONFIG.ORIGIN_IMAGE, CONFIG.GUIDE_IMAGE], fulls, flow);
   var seen = {}, queue = flow.filter(function (u) { if (!u || seen[u] || /^data:/.test(u)) return false; seen[u] = 1; return true; });
   var next = function () {
     var url = queue.shift();
