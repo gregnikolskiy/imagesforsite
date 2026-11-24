@@ -4,7 +4,7 @@
 /* ================= НАСТРОЙКИ ================= */
 var CONFIG = {
   // метка сборки: вкладка сверяет её с version.txt рядом с player.js и сама перезагружается после обновления
-  BUILD: '202611160441',
+  BUILD: '202611240808',
   // URL веб-приложения Google Apps Script (…/exec). Пока пусто, страница работает в демо-режиме.
   API_URL: 'https://script.google.com/macros/s/AKfycbwVcbeIXzzxV-jEmRPfp96IFKkWv09D9UbQgwCD_JojGyjFizNrcEXsxx-NA_AVifsvdA/exec',
   // Адрес этой страницы, из него собирается личная ссылка игрока
@@ -21,6 +21,8 @@ var CONFIG = {
   GENDER_IMAGES: { m: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/gender-m.jpg', f: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/gender-f.jpg' },
   // Фоны: город (вход и загрузка), деревня (лор), родная планета персонажа (окно «История персонажа»)
   CITY_IMAGE: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/city.jpg',
+  // картинки глав: паром и новая локация
+  CHAPTER_IMAGES: { 2: { ferry: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/ch2-ferry.jpg', hall: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/ch2-hall.jpg' } },
   VILLAGE_IMAGE: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/village.jpg',
   ORIGIN_IMAGE: 'https://cdn.jsdelivr.net/gh/gregnikolskiy/imagesforsite@main/upgrade/origin.jpg',
   // Картинка в шапке окна «Как работает прокачка»
@@ -62,9 +64,12 @@ var QUESTS = [
     links: [{ key: 'ca', label: 'Анализ ЦА' }, { key: 'comp', label: 'Анализ конкурентов' }, { key: 'utp', label: 'УТП' }],
     task: 'Комплект аналитики по своему проекту в Notion: ЦА, конкуренты и УТП.' },
   { id: 'q2', tag: 'Неделя 2', lvl: 20, proof: 'any', byClass: {
-    packer:     { title: 'Сайты и презентации с ИИ', task: 'Прототип и дизайн сайта или презентации с ИИ.' },
-    content:    { title: 'Контент-завод', task: 'Контент-завод для одной площадки клиента.' },
-    strategist: { title: 'Комплексный проект', task: 'План комплексного проекта на три месяца с составом команды.' } } },
+    packer:     { title: 'Сайт с ИИ', task: 'Готовый сайт на 5+ экранов. Пришли ссылку на сайт или HTML-файл.', proof: 'site' },
+    content:    { title: 'Контент-завод', task: 'По любой соцсети: контент-план на 8 публикаций и 3 готовые публикации.',
+                  links: [{ key: 'plan', label: 'Ссылка на контент-план', ph: 'https://…' },
+                          { key: 'posts', label: 'Ссылки на 3 публикации', multi: true, ph: 'По одной ссылке в строке. Если публикации ещё не вышли, дай ссылку на документ с ними' }] },
+    strategist: { title: 'План комплексного проекта', task: 'Полный план проекта: какую цель ставим, какие инструменты используем, кого берём в команду и что делаем сами, какой рекламный бюджет обозначаем.',
+                  links: [{ key: 'plan', label: 'Ссылка на документ с планом проекта', ph: 'Notion, Google Docs или другой документ' }] } } },
   { id: 'q3', tag: 'Неделя 3', title: 'Переупаковка себя', lvl: 30, proof: 'any',
     task: 'Сайт-портфолио.' },
   { id: 'q4', tag: 'Неделя 4', title: 'Очередь из клиентов', lvl: 40, proof: 'any',
@@ -383,7 +388,11 @@ function lvlGain(id) {
 }
 function questView(q) {
   var c = clsKey(), v = { id: q.id, tag: q.tag, title: q.title, task: q.task, lvl: q.lvl, proof: q.proof, boss: q.boss, links: q.links };
-  if (q.byClass) { var b = q.byClass[c] || q.byClass.packer; v.title = b.title; v.task = b.task; }
+  if (q.byClass) {
+    var b = q.byClass[c] || q.byClass.packer; v.title = b.title; v.task = b.task;
+    if (b.links) v.links = b.links;
+    if (b.proof) v.proof = b.proof;
+  }
   return v;
 }
 function questState(id) {
@@ -1395,8 +1404,13 @@ function screenDash() {
 
   // текущий квест: первый не выполненный, который можно сдать или который ждёт проверки
   // текущий квест: первый, который можно сдавать; если таких нет, первый на проверке
-  var current = null;
-  QUESTS.forEach(function (q) { var st = questState(q.id); if (!current && (st === 'active' || st === 'rework')) current = q; });
+  // недельные квесты открываются независимо друг от друга: текущим показываем самый свежий,
+  // а несданные квесты прошлых недель висят под ним напоминанием со своей кнопкой
+  var current = null, tails = [];
+  var acts = QUESTS.filter(function (q) { var st = questState(q.id); return st === 'active' || st === 'rework'; });
+  var weekly = acts.filter(function (q) { return /^q[1-4]$/.test(q.id); });
+  if (acts.length && !/^q[1-4]$/.test(acts[0].id)) current = acts[0];
+  else if (weekly.length) { current = weekly[weekly.length - 1]; tails = weekly.slice(0, -1); }
   QUESTS.forEach(function (q) { if (!current && questState(q.id) === 'review') current = q; });
   var activeHtml;
   if (current) {
@@ -1419,7 +1433,12 @@ function screenDash() {
       '<div class="ug-q-tag">' + esc(qv.tag) + (lvlGain(qv.id) ? ' · +' + lvlGain(qv.id) + ' к уровню' : '') + '</div>' +
       '<div class="ug-q-title">' + esc(qv.title) + '</div>' +
       (st === 'review' ? '' : '<div class="ug-q-task">' + esc(qv.task) + '</div>') + stateBox +
-      '<div class="ug-q-actions">' + actions + '</div></section>';
+      '<div class="ug-q-actions">' + actions + '</div>' +
+      tails.map(function (t) {
+        var tv = questView(t);
+        return '<div class="ug-q-tail">' + ico('alert') + '<span>Ещё не сдан квест «' + esc(tv.title) + '» (' + esc(tv.tag.toLowerCase()) + '). Его можно сдать в любой момент.</span>' +
+          '<button class="ug-btn is-ghost is-small" data-act="quest" data-q="' + tv.id + '">Сдать</button></div>';
+      }).join('') + '</section>';
   } else {
     activeHtml = '<section class="ug-panel"><div class="ug-panel-h"><div class="ug-panel-t">Текущий квест</div></div>' +
       '<div class="ug-q-state is-done">' + ico('check') + '<span>Все открытые квесты выполнены. Следующий откроется с началом новой недели.</span></div></section>';
@@ -1466,6 +1485,7 @@ function screenDash() {
           '<div class="ug-loot">' + petCard() + weaponCard() + '</div>' +
           boardHtml(achFresh) +
           '<button class="ug-btn is-ghost is-wide ug-origin-btn' + (questState('story') === 'done' ? '' : ' is-hint') + '" data-act="origin">' + ico('book') + 'История персонажа</button>' +
+          (chapterNow() ? '<button class="ug-btn is-ghost is-wide ug-origin-btn ug-chapter-btn" data-act="chapter" data-n="' + chapterNow() + '">' + ico('book') + 'Глава ' + chapterNow() + '. ' + esc(CHAPTERS[chapterNow()].hall.title) + '</button>' : '') +
         '</aside>' +
         '<div class="ug-col">' +
           lessonsPanel() + '<div id="ug-activebox">' + activeHtml + '</div>' +
@@ -1491,6 +1511,7 @@ function screenDash() {
     var run = function () { if (levelUp) animateLevel(fromLvl, lvl); };
     // после поздравлений с квестами и роста уровня вручаем новые ачивки по одной
     var awards = function () { if (achFresh.length) setTimeout(function () { awardNext(achFresh.slice()); }, levelUp ? 1600 : 500); };
+    if (chapterPending()) waitCalm(chapterAuto);
     if (modalOpened) S.afterClose = function () { run(); awards(); };
     else setTimeout(function () { run(); awards(); }, levelUp ? (created ? 1500 : 500) : (created ? 2600 : 300));
   };
@@ -1718,6 +1739,62 @@ function celebrateNew(seen) {
   return true;
 }
 
+/* ---------- главы сюжета ---------- */
+// глава открывается вместе с неделей: сначала окно с паромом, потом окно с новой локацией.
+// Отметка ach:ch-2 в «показано» — чтобы глава сама всплыла один раз; дальше её можно перечитать кнопкой
+var CHAPTERS = {
+  2: {
+    week: 'q2',
+    ferry: {
+      kicker: '// глава 2', title: 'За тобой прилетел паром', btn: 'Сесть на паром',
+      text: function () { return [
+        'Первая неделя в Ветряной Гавани позади. Ты ' + gw('научился', 'научилась') + ' разбирать проект клиента: кто его аудитория, с кем он конкурирует и чем он лучше других. С этим уже можно браться за настоящую работу.',
+        'Утром к пристани причалил старый грузовой паром. Капитан сказал только, что везёт новичков туда, где их научат ремеслу, и ждать никого не будет.'
+      ]; }
+    },
+    hall: {
+      kicker: '// глава 2 · Кайрос · Квартал Мастерских', title: 'Мастерские открываются', btn: 'Войти в зал',
+      text: function () { return [
+        'Паром летит над облаками к центру Кайроса, в старый Квартал Мастерских.',
+        'Когда-то здесь работали лучшие мастера системы. Потом корпорация Монолит завалила всех дешёвыми машинами, и мастера в знак протеста закрыли мастерские. Квартал пустовал двадцать лет.',
+        'Сегодня его снова открывают ученики Миры Тал, мастерицы, которая научила людей приручать машины.',
+        'Здесь пути мастеров расходятся: в квартале три зала, по одному на каждый класс.',
+        'Упаковщики в Зале Маяков строят маяки, по которым корабли находят дорогу к нужному порту, лавке или верфи.',
+        'Контентщики в Зале Посланий пишут послания, после которых капитаны меняют курс и летят туда, о ком в них рассказано.',
+        'Стратеги в Зале Покровителей берут под крыло торговые дома и целые планеты и ведут их годами, пока о них не заговорит вся система.',
+        'В каждом зале стоят списанные автоматоны Монолита. Всю неделю ты учишься их приручать, а когда Гриша засчитает главный квест недели, выберешь своего из нескольких, и он займёт место в твоём дашборде персонажа.'
+      ]; }
+    }
+  }
+};
+function chapterNow() {
+  var n = 0;
+  Object.keys(CHAPTERS).forEach(function (k) { var w = CHAPTERS[k].week; if (S.settings[w] && S.settings[w].open && +k > n) n = +k; });
+  return n;
+}
+function chapterPending() { var n = chapterNow(); return n && seenIds().indexOf('ach:ch-' + n) < 0 ? n : 0; }
+function chapterWindow(n, part) {
+  var ch = CHAPTERS[n], w = ch[part], img = ((CONFIG.CHAPTER_IMAGES || {})[n] || {})[part] || '';
+  var c = (CLASSES[clsKey()] || CLASSES.packer).color;
+  modal((img ? '<div class="ug-origin-img ug-chapter-img"><img src="' + esc(img) + '" alt=""></div>' : '') +
+    '<div class="ug-kicker">' + esc(w.kicker) + '</div>' +
+    '<h2 class="ug-h2">' + esc(w.title) + '</h2>' +
+    '<div class="ug-origin-text">' + w.text().map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + '</div>' +
+    '<div class="ug-dialog-actions"><button class="ug-btn" data-act="' + (part === 'ferry' ? 'chapter-board' : 'close') + '" data-n="' + n + '">' + esc(w.btn) + '</button></div>',
+    part === 'hall' ? c : null, 'ug-origin ug-chapter');
+}
+function chapterOpen(n) {
+  if (!n || !CHAPTERS[n]) return;
+  if (seenIds().indexOf('ach:ch-' + n) < 0) markSeen(seenIds().concat(['ach:ch-' + n]));
+  chapterWindow(n, 'ferry');
+}
+// после всех поздравлений, когда на экране тихо, показываем свежую главу
+function chapterAuto() {
+  var n = chapterPending(); if (!n) return;
+  if (root.querySelector('.ug-modal')) { waitCalm(chapterAuto); return; }
+  chapterOpen(n);
+}
+
 /* ---------- прокачка облика ---------- */
 // самый высокий порог облика (10, 20…), до которого дорос персонаж; 0 — стартовый облик
 function lookTier(lvl) {
@@ -1935,14 +2012,71 @@ var LESSONS = {
     { id: 'w1-1', title: 'Как проходить первую неделю? Как она повлияет на ваш доход?', main: true, video: 'https://play.boomstream.net/B8vXYqdl?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:83d5aaa7946ee0f8209089360b084bad/bhQlQss0-a12.jpg' },
     { id: 'w1-2', title: 'ИИ-скилл «Аналитика Никольского»', main: true, video: 'https://play.boomstream.net/3D5Dh9VE?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:162c1637898deb84e2b028b1f2cec730/jRYESYJx-a8.jpg',
       note: { q: 'Где найти файл со скиллом?', a: 'Перейди в дашборд персонажа, в раздел «ИИ-скиллы». Скилл уже ждёт тебя там.', act: 'goto-skills', btn: 'Перейти к скиллу' } },
-    { id: 'w1-3', title: 'Как я брифую клиента?', video: 'https://play.boomstream.net/9DHUyXTj?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:8178bc4dffff289349c740a2623d388a/ggOdTkz0-a1.jpg',
+    { id: 'w1-3', title: 'Как я брифую клиента?', workshop: true, video: 'https://play.boomstream.net/9DHUyXTj?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:8178bc4dffff289349c740a2623d388a/ggOdTkz0-a1.jpg',
       materials: [{ type: 'notion', title: 'Шаблон брифа для Notion', url: 'https://gregnikolskiy.notion.site/395aca9943ab8051be3fe4ac2c29f92a' }, { type: 'gdoc', title: 'Шаблон брифа для Google Docs', url: 'https://docs.google.com/document/d/1qYwqZ2Wjlo7PXHZDvqzzAve3GtGWYqTT/edit' }] },
-    { id: 'w1-4', title: 'Как я делаю анализ ЦА?', video: 'https://play.boomstream.net/r7G31vvL?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:0d448a4df45c6cb6ac3d16413bfc3246/Sg89o6Il-a12.jpg' },
-    { id: 'w1-5', title: 'Как я анализирую конкурентов?', video: 'https://play.boomstream.net/3shHYmJ6?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:c719bd286f093f88eafa6ab7d239277e/nXRBv2pj-a15.jpg' },
-    { id: 'w1-6', title: 'Как я формирую УТП?', video: 'https://play.boomstream.net/wW9vLMRX?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:3d6934b164335d5a987c09075ec8981d/ewpsTKt6-a4.jpg' }
+    { id: 'w1-4', title: 'Как я делаю анализ ЦА?', workshop: true, video: 'https://play.boomstream.net/r7G31vvL?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:0d448a4df45c6cb6ac3d16413bfc3246/Sg89o6Il-a12.jpg',
+      materials: [{ type: 'notion', title: 'Шаблон анализа ЦА для Notion', url: 'https://gregnikolskiy.notion.site/39aaca9943ab81b1b767dd588c2bb534' }] },
+    { id: 'w1-5', title: 'Как я анализирую конкурентов?', workshop: true, video: 'https://play.boomstream.net/3shHYmJ6?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:c719bd286f093f88eafa6ab7d239277e/nXRBv2pj-a15.jpg',
+      materials: [{ type: 'notion', title: 'Шаблон анализа конкурентов для Notion', url: 'https://gregnikolskiy.notion.site/39aaca9943ab817eb9a7e2b17c58f89a' }] },
+    { id: 'w1-6', title: 'Как я формирую УТП?', workshop: true, video: 'https://play.boomstream.net/wW9vLMRX?title=0', dur: '', cover: 'https://bs.boomstream.com/balancer/size:300/hash:3d6934b164335d5a987c09075ec8981d/ewpsTKt6-a4.jpg',
+      materials: [{ type: 'notion', title: 'Шаблон УТП для Notion', url: 'https://gregnikolskiy.notion.site/39aaca9943ab815bb30ac6c86ba59d05' }] }
   ],
-  q2: [], q3: [], q4: []
+  q2: [
+    { id: 'w2-0', title: 'Ты точно правильно выбрал свой класс? ПОСЛЕДНИЙ ШАНС ПОМЕНЯТЬ', video: 'https://play.boomstream.net/M6M8LT1J?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:efb70f3e4400127c54b8b7a05846cfa2/Nq8u81QG-a2.jpg',
+      hint: 'Чтобы поменять свой класс, напиши @gregnikol',
+      note: { q: 'Хочешь поменять свой класс?', a: 'Напиши Грише в Телеграм, он поменяет класс в твоём профиле.', url: 'https://t.me/gregnikol', btn: 'Написать @gregnikol' } },
+    { id: 'w2-packer', cls: 'packer', title: 'Как смотреть вторую неделю за упаковщика?', main: true, video: 'https://play.boomstream.net/TR9EdKVf?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:9e496acfcb3df6ea005308d46a5c289d/bTIJqcBg-a1.jpg' },
+    { id: 'w2-p2', cls: 'packer', title: 'ИИ сетап упаковщика', main: true, date: '25.11', video: '' },
+    { id: 'w2-p3', cls: 'packer', title: 'Как я пишу продающие смыслы на сайты и презентации?', workshop: true, date: '25.11', video: '' },
+    { id: 'w2-p4', cls: 'packer', title: 'Разборы смыслов на реальных сайтах, практика', workshop: true, date: '25.11', video: '' },
+    { id: 'w2-p5', cls: 'packer', title: 'Как дизайнить с ИИ?', main: true, date: '26.11', video: '' },
+    { id: 'w2-p6', cls: 'packer', title: 'Как перетащить прототипы/дизайн из ИИ в Figma?', date: '27.11', video: '' },
+    { id: 'w2-p7', cls: 'packer', title: 'Как перетащить дизайн из ИИ в Tilda?', date: '27.11', video: '' },
+    { id: 'w2-p8', cls: 'packer', title: 'Как разместить сайт на домене?', date: '28.11', video: '' },
+    { id: 'w2-skills', cls: 'packer', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '28.11', video: '' },
+    { id: 'w2-content', cls: 'content', title: 'Как смотреть вторую неделю за контентщика?', main: true, video: 'https://play.boomstream.net/e4I1RSmN?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:f8e14f3ce93f05e8144764cb929732a5/eeIKjakg-a1.jpg' },
+    { id: 'w2-c2', cls: 'content', title: 'Как писать качественные посты с ИИ?', main: true, workshop: true, date: '25.11', video: '' },
+    { id: 'w2-c3', cls: 'content', title: 'Как делать контент-план с ИИ?', main: true, workshop: true, date: '25.11', video: '' },
+    { id: 'w2-c4', cls: 'content', title: 'ИИ сетап по каруселям и сценариям к рилсам', date: '26.11', video: '' },
+    { id: 'w2-c5', cls: 'content', title: 'ИИ сетап по монтажу рилсов', date: '27.11', video: '' },
+    { id: 'w2-c6', cls: 'content', title: 'ИИ сетап по тредсу', date: '28.11', video: '' },
+    { id: 'w2-skills', cls: 'content', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '28.11', video: '' },
+    { id: 'w2-strategist', cls: 'strategist', title: 'Как смотреть вторую неделю за стратега?', main: true, video: 'https://play.boomstream.net/h5buvxSJ?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:42777ee4d7d5bc0d9b915b36d82efa03/0w3QmIeJ-a1.jpg' },
+    { id: 'w2-s2', cls: 'strategist', title: 'Как у меня выглядит ведение комплексных проектов за 300к+/мес.?', main: true, date: '25.11', video: '' },
+    { id: 'w2-s3', cls: 'strategist', title: 'Как я формирую план проекта, и какую услугу я там буду оказывать?', main: true, date: '26.11', video: '' },
+    { id: 'w2-s4', cls: 'strategist', title: 'Как я собираю команду под проект? А что делаю сам?', main: true, date: '27.11', video: '' },
+    { id: 'w2-s5', cls: 'strategist', title: 'Как я выявляю рутинные процессы, которые надо делегировать ИИ?', date: '27.11', video: '' },
+    { id: 'w2-skills', cls: 'strategist', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '28.11', video: '' }
+  ],
+  q3: [], q4: []
 };
+// в неделях с ветками классов игрок видит общие уроки и программу одного класса:
+// по умолчанию своего, но может переключиться на другой (выбор запоминается в браузере)
+function weekHasClasses(w) { return (LESSONS[w] || []).some(function (l) { return !!l.cls; }); }
+function lessonCls() {
+  if (!S.lessonCls) {
+    var saved = '';
+    try { saved = localStorage.getItem('ug_lcls_' + S.nick) || ''; } catch (e) {}
+    S.lessonCls = CLASSES[saved] ? saved : (clsKey() || 'packer');
+  }
+  return S.lessonCls;
+}
+function lessonList(w) {
+  var list = LESSONS[w] || [], k = lessonCls();
+  return list.filter(function (l) { return !l.cls; }).concat(list.filter(function (l) { return l.cls === k; }));
+}
+// главный урок помечен main: true, остальные по желанию
+function lessonMain(l) { return l.main === true; }
+function lessonClsPicker() {
+  var cur = lessonCls(), mine = clsKey(), g = genKey();
+  return '<div class="ug-lcls"><div class="ug-lcls-t">Программа класса</div><div class="ug-lcls-row">' +
+    Object.keys(CLASSES).map(function (k) {
+      var c = CLASSES[k], img = (CONFIG.IMAGES[g] || {})[k] || '';
+      return '<button class="ug-lcls-b' + (k === cur ? ' is-on' : '') + '" style="--cc:' + c.color + '" data-act="lesson-cls" data-k="' + k + '">' +
+        (img ? '<span class="ug-lcls-i"><img src="' + esc(img) + '" alt=""></span>' : '') +
+        '<span class="ug-lcls-n">' + esc(c.name) + (k === mine ? '<i>твой класс</i>' : '') + '</span></button>';
+    }).join('') + '</div></div>';
+}
 var WEEKS = ['q1', 'q2', 'q3', 'q4'];
 function weekOpen(w) { return !!(S.settings[w] && S.settings[w].open); }
 // уроки первой недели открываются по первым квестам, без галочки в «Настройках»; недели 2–4 по галочке
@@ -1950,7 +2084,7 @@ function lessonsWeekOpen(w) { return w === 'q1' || weekOpen(w); }
 function watched(id) { return ((S.player && S.player.lessons) || []).indexOf(id) >= 0; }
 function lessonById(id) {
   var r = null;
-  WEEKS.forEach(function (w) { (LESSONS[w] || []).forEach(function (l, i) { if (l.id === id) r = { l: l, w: w, n: i + 1 }; }); });
+  WEEKS.forEach(function (w) { lessonList(w).forEach(function (l, i) { if (l.id === id) r = { l: l, w: w, n: i + 1 }; }); });
   return r;
 }
 var LESSON_GATE = ['story', 'guide', 'q0'];
@@ -1985,7 +2119,7 @@ function lessonsPanel() {
   return '<section class="ug-panel ug-lessons" id="ug-lessons">' + lessonsInner() + '</section>';
 }
 function lessonsInner() {
-  var w = S.lessonWeek, list = LESSONS[w] || [], open = lessonsWeekOpen(w);
+  var w = S.lessonWeek, list = lessonList(w), open = lessonsWeekOpen(w);
   var tabs = WEEKS.map(function (x, i) {
     return '<button class="ug-ltab' + (x === w ? ' is-on' : '') + (lessonsWeekOpen(x) ? '' : ' is-locked') + '" data-act="lesson-week" data-w="' + x + '">' +
       (lessonsWeekOpen(x) ? '' : ico('lock')) + 'Неделя ' + (i + 1) + '</button>';
@@ -1998,25 +2132,31 @@ function lessonsInner() {
   else {
     // ближайший непросмотренный урок по порядку крупнее остальных: с него и начинать
     var next = -1;
-    list.forEach(function (l, i) { if (next < 0 && !watched(l.id)) next = i; });
+    list.forEach(function (l, i) { if (next < 0 && l.video && !watched(l.id)) next = i; });
     body = list.map(function (l, i) {
       var seen = watched(l.id), ready = !!l.video, isNext = i === next;
       var meta = [];
       var nf = (l.materials || []).filter(function (m) { return m.type === 'file'; }).length, nt = (l.materials || []).length - nf;
       if (nf) meta.push(ico('clip') + (nf > 1 ? nf + ' файла' : 'файл'));
       if (nt) meta.push(ico('clip') + (nt > 1 ? nt + ' шаблона' : 'шаблон'));
-      if (!ready) meta.push('видео скоро');
-      return '<div class="ug-lrow' + (seen ? ' is-seen' : '') + (isNext ? ' is-next' : '') + '" data-act="lesson" data-l="' + l.id + '">' +
+      var chips = '';
+      if (!ready) chips += '<span class="ug-lchip is-date">' + ico('clock') + (l.date ? 'выйдет ' + esc(l.date) : 'видео скоро') + '</span>';
+      if (l.workshop) chips += '<span class="ug-lchip is-ws">из воркшопа</span>';
+      return '<div class="ug-lrow' + (seen ? ' is-seen' : '') + (isNext ? ' is-next' : '') + (ready ? '' : ' is-soon') + '"' + (ready ? ' data-act="lesson" data-l="' + l.id + '"' : '') + '>' +
         lessonThumb(l, i) +
         '<div class="ug-lbody">' + (isNext ? '<div class="ug-lnext">' + (done ? 'Следующий урок' : 'Начни с этого урока') + '</div>' : '') +
           '<div class="ug-lt"><b>Урок ' + (i + 1) + '.</b> ' + esc(l.title) + '</div>' +
+          (l.hint ? '<div class="ug-lhint">' + esc(l.hint) + '</div>' : '') +
+          (chips ? '<div class="ug-lchips">' + chips + '</div>' : '') +
           (meta.length ? '<div class="ug-lm">' + meta.join('<i class="ug-dot"></i>') + '</div>' : '') + '</div>' +
-        '<span class="ug-ltag' + (l.main ? ' is-main' : '') + '">' + (l.main ? 'главный' : 'по желанию') + '</span></div>';
+        '<span class="ug-ltag' + (lessonMain(l) ? ' is-main' : '') + '">' + (lessonMain(l) ? 'главный' : 'по желанию') + '</span></div>';
     }).join('');
   }
-  return '<div class="ug-panel-h"><div class="ug-panel-t">Уроки</div>' +
+  var accStyle = open && !gate && weekHasClasses(w) ? ' style="--acc:' + CLASSES[lessonCls()].color + '"' : '';
+  return '<div class="ug-lwrap"' + accStyle + '><div class="ug-panel-h"><div class="ug-panel-t">Уроки</div>' +
       (open && list.length && !gate ? '<div class="ug-panel-t">просмотрено ' + done + ' из ' + list.length + '</div>' : '') + '</div>' +
-    '<div class="ug-ltabs">' + tabs + '</div><div class="ug-llist">' + body + '</div>';
+    '<div class="ug-ltabs">' + tabs + '</div>' + (open && !gate && weekHasClasses(w) ? lessonClsPicker() : '') +
+    '<div class="ug-llist">' + body + '</div></div>';
 }
 // миниатюра урока: картинка обложки, а пока её нет, фирменная заглушка с номером
 // обложка ищется сама: lessons/<номер урока>.jpg на GitHub, например lessons/w1-3.jpg
@@ -2033,7 +2173,7 @@ function lessonThumb(l, i) {
   var img = coverUrl(l), ok = coverOk[img] === true;
   return '<div class="ug-lthumb' + (ok ? ' has-img' : '') + '" data-cover="' + esc(img) + '"' + (ok ? ' style="background-image:url(\'' + esc(img) + '\')"' : '') + '>' +
     '<span class="ug-lnum">' + (i < 9 ? '0' : '') + (i + 1) + '</span>' +
-    '<span class="ug-lico">' + ico(watched(l.id) ? 'check' : 'play') + '</span>' +
+    '<span class="ug-lico">' + ico(!l.video ? 'lock' : watched(l.id) ? 'check' : 'play') + '</span>' +
     (l.dur ? '<span class="ug-ldur">' + esc(l.dur) + '</span>' : '') + '</div>';
 }
 function rerenderLessons() { var el = root.querySelector('#ug-lessons'); if (el) el.innerHTML = lessonsInner(); hydrateThumbs(); }
@@ -2098,15 +2238,16 @@ function openLesson(id) {
   var f = lessonById(id); if (!f) return;
   var l = f.l;
   var week = WEEKS.indexOf(f.w) + 1, srcv = videoSource(l.video), vid = srcv.id;
-  modal('<div class="ug-kicker">// неделя ' + week + ' · урок ' + f.n + (l.main ? ' · главный' : '') + '</div>' +
+  modal('<div class="ug-kicker">// неделя ' + week + ' · урок ' + f.n + (lessonMain(l) ? ' · главный' : '') + '</div>' +
     '<h2 class="ug-h2">' + esc(l.title) + '</h2>' +
     (l.video
       ? '<div class="ug-player"><div id="ug-kplayer"></div></div><div class="ug-lwatch" id="ug-lwatch">' + watchState(id) + '</div>'
       : '<div class="ug-player is-empty"><div class="ug-player-soon">' + ico('hourglass') + '<span>Видео появится здесь совсем скоро</span></div></div>') +
     (l.note ? '<div class="ug-lnote">' + ico('chip') + '<div><b>' + esc(l.note.q) + '</b><span>' + esc(l.note.a) + '</span>' +
-      (l.note.act ? '<div style="margin-top:12px"><button class="ug-btn is-small" data-act="' + l.note.act + '">' + esc(l.note.btn) + '</button></div>' : '') + '</div></div>' : '') +
+      (l.note.act ? '<div style="margin-top:12px"><button class="ug-btn is-small" data-act="' + l.note.act + '">' + esc(l.note.btn) + '</button></div>' : '') +
+      (l.note.url ? '<div style="margin-top:12px"><a class="ug-btn is-small" href="' + esc(l.note.url) + '" target="_blank" rel="noopener">' + esc(l.note.btn) + '</a></div>' : '') + '</div></div>' : '') +
     ((l.materials || []).length ? '<div class="ug-mats"><div class="ug-panel-t">Материалы к уроку</div>' + l.materials.map(materialHtml).join('') + '</div>' : ''),
-    null, 'ug-lesson');
+    l.cls && CLASSES[l.cls] ? CLASSES[l.cls].color : null, 'ug-lesson');
   if (!l.video) return;
   music.hold(true);
   S.afterClose = function () { music.hold(false); if (S.kplayer) { try { S.kplayer.destroy(); } catch (e) {} S.kplayer = null; } };
@@ -2252,15 +2393,16 @@ function openQuest(id) {
     '<h2 class="ug-h2">' + esc(q.title) + '</h2>' +
     '<p class="ug-p">' + esc(q.task) + '</p>' +
     (id === 'q0' ? '<div style="margin-top:16px"><a class="ug-btn is-ghost is-small" href="' + esc(CONFIG.CHAT_URL) + '" target="_blank" rel="noopener">' + ico('chat') + 'Открыть чат потока</a></div>' : '') +
-    (q.links ? linksForm(q) : uploadForm(q)) +
+    (q.links ? linksForm(q) : q.proof === 'site' ? siteForm(q) : uploadForm(q)) +
     '<div class="ug-err" id="ug-qerr"></div>' +
     '<button class="ug-btn is-wide" data-act="quest-send" id="ug-qsend" disabled>Выполнить</button>' +
-    (DEMO && !q.links ? '<div style="margin-top:12px;text-align:center"><button class="ug-link" data-act="quest-send" data-demo="1">Демо: сдать без скриншота</button></div>' : ''));
+    (DEMO && !q.links && q.proof !== 'site' ? '<div style="margin-top:12px;text-align:center"><button class="ug-link" data-act="quest-send" data-demo="1">Демо: сдать без скриншота</button></div>' : ''));
 
-  if (q.links) {
-    root.querySelectorAll('.ug-qlink input').forEach(function (i) { i.addEventListener('input', function () { i.closest('.ug-field').classList.remove('is-bad'); updateSend(); }); });
-    return;
+  S.fileKind = q.proof === 'site' ? 'html' : 'image';
+  if (q.links || q.proof === 'site') {
+    root.querySelectorAll('.ug-qlink input, .ug-qlink textarea').forEach(function (i) { i.addEventListener('input', function () { i.closest('.ug-field').classList.remove('is-bad'); updateSend(); }); });
   }
+  if (q.links) return;
   var drop = root.querySelector('#ug-drop'), input = root.querySelector('#ug-file'), comment = root.querySelector('#ug-comment');
   input.addEventListener('change', function () { addFiles(input.files); input.value = ''; });
   ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
@@ -2271,12 +2413,27 @@ function openQuest(id) {
 // квест со ссылками: по полю на каждый документ
 function linksForm(q) {
   return '<div class="ug-qlinks">' + q.links.map(function (l) {
+    var ph = esc(l.ph || 'https://notion.so/…');
     return '<div class="ug-qlink"><div class="ug-label">' + esc(l.label) + '</div>' +
-      '<label class="ug-field"><input type="url" inputmode="url" data-link="' + l.key + '" placeholder="https://notion.so/…" autocomplete="off" spellcheck="false"></label></div>';
+      '<label class="ug-field">' + (l.multi ? '<textarea rows="3" data-link="' + l.key + '" placeholder="' + ph + '" spellcheck="false"></textarea>' :
+        '<input type="url" inputmode="url" data-link="' + l.key + '" placeholder="' + ph + '" autocomplete="off" spellcheck="false">') + '</label></div>';
   }).join('') + '</div>' +
-  '<div class="ug-hint">Проверь, что страницы открыты по ссылке: в Notion нажми Share и в General access выбери Anyone with the link.</div>' +
+  '<div class="ug-hint">Проверь, что документы открываются по ссылке без входа в аккаунт. В Notion: Share → General access → Anyone with the link. В Google Docs: Настройки доступа → Все, у кого есть ссылка.</div>' +
   '<div class="ug-label" style="margin-top:16px">Комментарий (необязательно)</div>' +
   '<label class="ug-field"><textarea id="ug-comment" rows="2" maxlength="1500" placeholder="Если хочешь что-то добавить"></textarea></label>';
+}
+// квест Упаковщика: ссылка на сайт или HTML-файл
+function siteForm(q) {
+  return '<div class="ug-qlink"><div class="ug-label">Ссылка на сайт</div>' +
+      '<label class="ug-field"><input type="url" inputmode="url" id="ug-site" placeholder="https://…" autocomplete="off" spellcheck="false"></label></div>' +
+    '<div class="ug-label" style="margin-top:16px">или HTML-файл</div>' +
+    '<label class="ug-drop" id="ug-drop">' + ico('upload') +
+      '<div class="ug-drop-t">Прикрепи HTML-файл</div>' +
+      '<div class="ug-drop-d">Один файл .html до 6 МБ. На компьютере можно просто перетащить его сюда.</div>' +
+      '<input type="file" accept=".html,.htm,text/html" id="ug-file"></label>' +
+    '<div class="ug-thumbs" id="ug-thumbs"></div>' +
+    '<div class="ug-label" style="margin-top:18px">Комментарий (необязательно)</div>' +
+    '<label class="ug-field"><textarea id="ug-comment" rows="2" maxlength="1500" placeholder="Если хочешь что-то добавить"></textarea></label>';
 }
 function uploadForm(q) {
   return '<label class="ug-drop" id="ug-drop">' + ico('upload') +
@@ -2289,9 +2446,14 @@ function uploadForm(q) {
 }
 // файлы читаем через FileReader в data-URL: blob-ссылки блокируются в некоторых окнах (превью, встроенные браузеры)
 function addFiles(list) {
+  var html = S.fileKind === 'html';
   Array.prototype.forEach.call(list || [], function (f) {
-    if (S.files.length >= 3 || (f.type && !/^image\//.test(f.type))) return;
-    var item = { name: f.name || 'screenshot', type: f.type || 'image/jpeg', dataUrl: '', size: f.size || 0 };
+    if (html) {
+      if (!/\.html?$/i.test(f.name || '') && f.type !== 'text/html') return;
+      if ((f.size || 0) > 6 * 1024 * 1024) { var e = root.querySelector('#ug-qerr'); if (e) e.textContent = 'Файл больше 6 МБ. Пришли ссылку на сайт или уменьши файл.'; return; }
+      S.files = [];
+    } else if (S.files.length >= 3 || (f.type && !/^image\//.test(f.type))) return;
+    var item = { name: f.name || (html ? 'site.html' : 'screenshot'), type: html ? 'text/html' : (f.type || 'image/jpeg'), dataUrl: '', size: f.size || 0, html: html };
     S.files.push(item);
     var r = new FileReader();
     r.onload = function () { item.dataUrl = String(r.result || ''); renderThumbs(); };
@@ -2303,20 +2465,26 @@ function addFiles(list) {
 function renderThumbs() {
   var box = root.querySelector('#ug-thumbs'); if (!box) return;
   box.innerHTML = S.files.map(function (f, i) {
-    var inner = f.dataUrl ? '<img src="' + f.dataUrl + '" alt="">' : '<span class="ug-thumb-wait mono">' + (f.failed ? 'ошибка' : '...') + '</span>';
-    return '<div class="ug-thumb">' + inner + '<button data-act="rm-file" data-i="' + i + '" aria-label="Убрать">' + ico('x') + '</button></div>';
+    var inner = f.html ? '<span class="ug-thumb-file">' + ico('doc') + '<b>' + esc(f.name) + '</b></span>' :
+      f.dataUrl ? '<img src="' + f.dataUrl + '" alt="">' : '<span class="ug-thumb-wait mono">' + (f.failed ? 'ошибка' : '...') + '</span>';
+    return '<div class="ug-thumb' + (f.html ? ' is-file' : '') + '">' + inner + '<button data-act="rm-file" data-i="' + i + '" aria-label="Убрать">' + ico('x') + '</button></div>';
   }).join('');
   var err = root.querySelector('#ug-qerr');
   if (err) err.textContent = S.files.some(function (f) { return f.failed; }) ? 'Этот файл не получилось прочитать. Попробуй другой скриншот.' : '';
   updateSend();
 }
 function questLinks() {
-  return Array.prototype.map.call(root.querySelectorAll('.ug-qlink input'), function (i) { return i.value.trim(); });
+  return Array.prototype.map.call(root.querySelectorAll('.ug-qlink [data-link]'), function (i) { return i.value.trim(); });
 }
 var LINK_RE = /^(https?:\/\/)?[^\s.\/]+\.[^\s]{2,}$/i;
 function canSend() {
-  var q = QUESTS.filter(function (x) { return x.id === S.questId; })[0];
+  var q = questView(QUESTS.filter(function (x) { return x.id === S.questId; })[0]);
   if (q && q.links) return questLinks().every(function (v) { return v.length > 0; });
+  if (q && q.proof === 'site') {
+    var site = root.querySelector('#ug-site'), hasSite = site && site.value.trim().length > 0;
+    var file = S.files.some(function (f) { return f.dataUrl && !f.failed; }), wait = S.files.some(function (f) { return !f.dataUrl && !f.failed; });
+    return !wait && (hasSite || file);
+  }
   var comment = root.querySelector('#ug-comment');
   var hasText = comment && comment.value.trim().length > 0;
   var ready = S.files.filter(function (f) { return f.dataUrl && !f.failed; }).length;
@@ -2351,22 +2519,33 @@ function compress(f) {
 function sendQuest(btn) {
   if (!canSend() && !btn.getAttribute('data-demo')) return;
   var err = root.querySelector('#ug-qerr'), comment = root.querySelector('#ug-comment').value.trim(), id = S.questId;
-  var qd = QUESTS.filter(function (x) { return x.id === id; })[0];
+  var qd = questView(QUESTS.filter(function (x) { return x.id === id; })[0]);
+  if (qd && qd.proof === 'site') {
+    var siteEl = root.querySelector('#ug-site'), sv = siteEl ? siteEl.value.trim() : '';
+    if (sv && !LINK_RE.test(sv)) { siteEl.closest('.ug-field').classList.add('is-bad'); err.textContent = 'Похоже, это не ссылка. Скопируй адрес сайта целиком.'; return; }
+    comment = (sv ? 'Сайт: ' + (/^https?:/i.test(sv) ? sv : 'https://' + sv) : 'Сайт: HTML-файл во вложении') + (comment ? '\nКомментарий: ' + comment : '');
+  }
   if (qd && qd.links) {
     // три ссылки складываем в комментарий: так они придут в письме и лягут во вкладку «Сдачи»
     var vals = questLinks(), bad = -1;
-    vals.forEach(function (v, i) { if (bad < 0 && !LINK_RE.test(v)) bad = i; });
+    // в многострочном поле каждая непустая строка должна быть ссылкой
+    var okLink = function (v, l) { return l.multi ? v.split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean).every(function (x) { return LINK_RE.test(x); }) : LINK_RE.test(v); };
+    vals.forEach(function (v, i) { if (bad < 0 && !okLink(v, qd.links[i])) bad = i; });
     if (bad >= 0) {
       root.querySelectorAll('.ug-qlink .ug-field')[bad].classList.add('is-bad');
       err.textContent = 'Похоже, в поле «' + qd.links[bad].label + '» не ссылка. Скопируй адрес страницы целиком.';
       return;
     }
-    comment = qd.links.map(function (l, i) { var v = vals[i]; return l.label + ': ' + (/^https?:/i.test(v) ? v : 'https://' + v); }).join('\n') +
+    var fix = function (v) { return /^https?:/i.test(v) ? v : 'https://' + v; };
+    comment = qd.links.map(function (l, i) {
+      var v = vals[i];
+      return l.multi ? l.label + ':\n' + v.split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean).map(fix).join('\n') : l.label + ': ' + fix(v);
+    }).join('\n') +
       (comment ? '\nКомментарий: ' + comment : '');
   }
   btn.classList.add('is-loading'); btn.textContent = 'Отправка';
   var ready = S.files.filter(function (f) { return f.dataUrl && !f.failed; });
-  Promise.all(ready.map(compress))
+  Promise.all(ready.map(function (f) { return f.html ? Promise.resolve({ name: f.name, mime: 'text/html', data: f.dataUrl.split(',')[1] || '' }) : compress(f); }))
     .catch(function (e) { e.stage = 'file'; throw e; })
     .then(function (files) { return apiPost({ action: 'submit', nick: S.nick, quest: id, comment: comment || (btn.getAttribute('data-demo') ? 'демо' : ''), files: files }); })
     .then(function (res) {
@@ -2525,6 +2704,12 @@ var ACTIONS = {
   'ach-claim': function (el) { claimAward(el.getAttribute('data-ach')); },
   'ach-info': function (el) { if (!el.classList.contains('is-pending')) achInfo(el.getAttribute('data-ach')); },
   'ach-locked': function () { modal('<div class="ug-award-stage">' + lockedBadge().replace('ug-badge', 'ug-badge is-big') + '</div><div class="ug-kicker">// достижение</div><h2 class="ug-h2">Пока скрыто</h2><p class="ug-p">Сюда прибьют следующую ачивку. За что её дают, узнаешь, когда получишь.</p>', '#8b93c9', 'ug-congrats ug-award'); },
+  'lesson-cls': function (el) {
+    var k = el.getAttribute('data-k'); if (!CLASSES[k] || k === S.lessonCls) return;
+    S.lessonCls = k;
+    try { localStorage.setItem('ug_lcls_' + S.nick, k); } catch (e) {}
+    music.sfx('tick'); rerenderLessons();
+  },
   'lesson-week': function (el) { S.lessonWeek = el.getAttribute('data-w'); music.sfx('tick'); rerenderLessons(); },
   'lesson': function (el) { openLesson(el.getAttribute('data-l')); },
   'lesson-done': function (el) { markWatched(el.getAttribute('data-l')); },
@@ -2557,9 +2742,23 @@ var ACTIONS = {
   'logout-ok': function () { closeModal(); if (music.isPlaying()) music.start('ambient'); store.del('ug_nick'); if (S.nick) store.del('ug_pin_' + S.nick); setHash(''); S.player = null; S.nick = ''; S.draft = {}; screenLogin(''); },
   'demo-approve': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; Object.keys(p.quests).forEach(function (k) { if (p.quests[k] === 'на проверке') p.quests[k] = 'выполнен'; }); }); },
   'demo-rework': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (!p) return; Object.keys(p.quests).forEach(function (k) { if (p.quests[k] === 'на проверке') p.quests[k] = 'доработать'; }); }); },
-  'demo-week': function () { demoMutate(function (db) { for (var i = 0; i < QUESTS.length; i++) { var id = QUESTS[i].id; if (!db.settings[id].open) { db.settings[id].open = true; db.settings[id].deadline = 'вс, 23:59 МСК'; break; } } }); },
+  // открываем первую неделю, которая игроку ещё закрыта (неделя 1 открывается сама после первых квестов, её пропускаем)
+  'demo-week': function () {
+    var target = null;
+    QUESTS.forEach(function (q) { if (!target && !q.auto && questState(q.id) === 'locked') target = q.id; });
+    if (!target) { toast('Все недели уже открыты'); return; }
+    demoMutate(function (db) { db.settings[target].open = true; db.settings[target].deadline = 'вс, 23:59 МСК'; });
+    toast('Открыта ' + (questView(QUESTS.filter(function (q) { return q.id === target; })[0]).tag || 'неделя').toLowerCase());
+  },
   'demo-pet': function () { demoMutate(function (db) { var p = db.players[S.nick]; if (p) p.pet = 'Кибер-лис'; }); },
   'evo-skip': function () { if (S.evoSkip) S.evoSkip(); },
+  'chapter': function (el) { chapterOpen(+el.getAttribute('data-n')); },
+  'chapter-board': function (el) {
+    var n = +el.getAttribute('data-n'), d = root.querySelector('.ug-chapter');
+    music.sfx('achieve');
+    if (d) d.classList.add('is-leaving');
+    setTimeout(function () { chapterWindow(n, 'hall'); }, 450);
+  },
   'demo-evo': function () {
     var g = genKey(), k = clsKey(), a = levelImage(g, k, 5), b = levelImage(g, k, 10);
     if (a && b) { DEMO_EVO = true; evolution({ title: 'Анализ проекта' }, 5, 10, a, b); }
