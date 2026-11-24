@@ -1070,3 +1070,55 @@
   #ug-root .ug-evo-end{margin-top:18px}
   #ug-root .ug-evo-end .ug-h2{margin-bottom:6px}
 }
+
+/* ---------- выбор программы класса в неделе с ветками ---------- */
+#ug-root .ug-lcls{margin:12px 0 4px}
+#ug-root .ug-lcls-t{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+#ug-root .ug-lcls-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#ug-root .ug-lcls-b{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 8px;border:1px solid var(--line2);background:rgba(255,255,255,.02);color:var(--muted);cursor:pointer;text-align:left;transition:border-color .2s,background .2s,color .2s,box-shadow .2s;font:inherit}
+#ug-root .ug-lcls-b:hover{border-color:color-mix(in srgb,var(--cc) 60%,transparent);color:#fff}
+#ug-root .ug-lcls-b.is-on{border-color:var(--cc);color:#fff;background:color-mix(in srgb,var(--cc) 14%,transparent);box-shadow:0 0 18px -6px var(--cc),inset 0 0 0 1px color-mix(in srgb,var(--cc) 40%,transparent)}
+#ug-root .ug-lcls-i{flex:0 0 auto;width:42px;height:42px;overflow:hidden;clip-path:var(--oct);background:#0b0d1a;opacity:.55;transition:opacity .2s}
+#ug-root .ug-lcls-b.is-on .ug-lcls-i,#ug-root .ug-lcls-b:hover .ug-lcls-i{opacity:1}
+#ug-root .ug-lcls-i img{width:100%;height:100%;object-fit:cover;object-position:50% 12%;display:block}
+#ug-root .ug-lcls-n{display:flex;flex-direction:column;gap:3px;font-family:var(--f-head);font-size:14px;font-weight:700;line-height:1.1}
+#ug-root .ug-lcls-n i{font-style:normal;font-family:var(--f-mono);font-size:10px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--cc)}
+@media (max-width:560px){
+  #ug-root .ug-lcls-b{flex-direction:column;align-items:center;text-align:center;padding:8px 4px;gap:6px}
+  #ug-root .ug-lcls-n{align-items:center;font-size:13px}
+}
+#ug-root .ug-lhint{margin-top:6px;font-size:13px;line-height:1.35;color:var(--muted)}
+#ug-root a.ug-btn{text-decoration:none;display:inline-flex}
+#ug-root .ug-lrow.is-soon{cursor:default}
+#ug-root .ug-lrow.is-soon:hover{background:none}
+#ug-root .ug-lrow.is-soon .ug-lthumb{filter:grayscale(.6) brightness(.7)}
+#ug-root .ug-lrow.is-soon .ug-lthumb .ug-lico{background:rgba(5,7,13,.85);border-color:var(--acc);color:var(--acc);width:40px;height:40px;margin:-20px 0 0 -20px}
+#ug-root .ug-lrow.is-soon .ug-lthumb .ug-lico .ug-ico path{fill:none}
+#ug-root .ug-lrow.is-soon:hover .ug-lthumb .ug-lico{transform:none;box-shadow:none}
+#ug-root .ug-lrow.is-soon .ug-lt{color:var(--muted)}
+#ug-root .ug-lrow.is-soon .ug-lt b{color:var(--muted)}
+#ug-root .ug-q-tail{display:flex;align-items:center;gap:12px;margin-top:16px;padding:12px 14px;border:1px dashed var(--line2);background:rgba(255,255,255,.02);font-size:14px;line-height:1.4;color:var(--muted)}
+#ug-root .ug-q-tail .ug-ico{flex:0 0 auto;width:18px;height:18px;color:#ffbf3d}
+#ug-root .ug-q-tail span{flex:1}
+#ug-root .ug-q-tail .ug-btn{flex:0 0 auto}
+@media (max-width:560px){#ug-root .ug-q-tail{flex-wrap:wrap}#ug-root .ug-q-tail .ug-btn{margin-left:30px}}
+
+/* дата выхода и пометка «из воркшопа»: заметные плашки под названием урока */
+#ug-root .ug-lchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#ug-root .ug-lchip{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;line-height:1.2;text-transform:uppercase;white-space:nowrap}
+#ug-root .ug-lchip .ug-ico{width:13px;height:13px}
+#ug-root .ug-lchip.is-date{color:#05070d;background:var(--acc);font-weight:700;box-shadow:0 0 16px -4px var(--acc)}
+#ug-root .ug-lchip.is-ws{color:#ffd23f;border:1px solid rgba(255,210,63,.6);background:rgba(255,210,63,.08)}
+
+/* ---------- окна главы ---------- */
+#ug-root .ug-chapter{transition:opacity .45s,transform .45s}
+#ug-root .ug-chapter.is-leaving{opacity:0;transform:translateX(-40px)}
+#ug-root .ug-chapter .ug-chapter-img img{animation:ug-ch-in 1.2s ease-out both}
+@keyframes ug-ch-in{from{transform:scale(1.06);filter:brightness(.6)}to{transform:none;filter:none}}
+#ug-root .ug-chapter-btn{margin-top:10px}
+#ug-root .ug-dialog > .ug-x{z-index:6}
+#ug-root .ug-thumb.is-file{width:auto;max-width:100%;padding:0 40px 0 12px;display:flex;align-items:center}
+#ug-root .ug-thumb-file{display:flex;align-items:center;gap:8px;font-size:13px;color:#fff;overflow:hidden}
+#ug-root .ug-thumb-file b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+#ug-root .ug-thumb-file .ug-ico{width:20px;height:20px;color:var(--acc);flex:0 0 auto}
+#ug-root .ug-qlink textarea{width:100%;resize:vertical}
