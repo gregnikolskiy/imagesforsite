@@ -4,7 +4,7 @@
 /* ================= НАСТРОЙКИ ================= */
 var CONFIG = {
   // метка сборки: вкладка сверяет её с version.txt рядом с player.js и сама перезагружается после обновления
-  BUILD: '202611250955',
+  BUILD: '202611251001',
   // URL веб-приложения Google Apps Script (…/exec). Пока пусто, страница работает в демо-режиме.
   API_URL: 'https://script.google.com/macros/s/AKfycbwVcbeIXzzxV-jEmRPfp96IFKkWv09D9UbQgwCD_JojGyjFizNrcEXsxx-NA_AVifsvdA/exec',
   // Адрес этой страницы, из него собирается личная ссылка игрока
@@ -1455,7 +1455,7 @@ function screenDash() {
   }).join('');
 
   // пока без названий: по одному закрытому слоту на неделю, названия скиллов появятся позже
-  var items = SKILL_SLOTS.map(skillItem).join('');
+  var items = skillSlots().map(skillItem).join('');
 
   var sheet = (S.player && S.player.sheet) || {};
   var stats = QUIZ.map(function (q) {
@@ -1625,40 +1625,57 @@ function skillOf(w) {
 // скилл первой недели открывается вместе с уроками
 function skillOpen(w) { return w === 'q1' ? lessonsUnlocked() : weekOpen(w); }
 function skillFresh(w) { return !!skillOf(w) && skillOpen(w) && seenIds().indexOf('ach:skill-' + w) < 0; }
-function skillItem(w, si) {
-  var open = skillOpen(w), sk = skillOf(w), fresh = skillFresh(w);
+// слоты инвентаря: по одному на неделю; в неделе с ветками сначала скилл своего класса, следом скиллы других классов
+function skillSlots() {
+  var out = [], mine = clsKey();
+  SKILL_SLOTS.forEach(function (w) {
+    var sk = SKILLS[w];
+    if (sk && sk.byClass && skillOpen(w)) {
+      var keys = Object.keys(CLASSES).filter(function (k) { return sk.byClass[k]; });
+      keys.sort(function (a, b) { return (b === mine) - (a === mine); });
+      if (!keys.length) out.push({ w: w });
+      keys.forEach(function (k) { out.push({ w: w, cls: k }); });
+    } else out.push({ w: w });
+  });
+  return out;
+}
+function slotSkill(e) { return e.cls ? SKILLS[e.w].byClass[e.cls] : skillOf(e.w); }
+function slotMine(e) { return !e.cls || e.cls === clsKey(); }
+function slotFresh(e) { return slotMine(e) && skillFresh(e.w); }
+function skillItem(e, si) {
+  var w = e.w, open = skillOpen(w), sk = slotSkill(e), fresh = slotFresh(e), other = !slotMine(e);
   var tag = QUESTS.filter(function (q) { return q.id === w; })[0].tag;
-  var later = open && !sk && SKILLS[w] && SKILLS[w].byClass;   // у класса игрока скилла этой недели пока нет
   var name = !open ? 'Скрытый скилл' : fresh ? 'Новый скилл' : sk ? sk.name : 'Новый скилл';
-  var meta = !open ? esc(tag.toLowerCase()) : fresh ? 'нажми, чтобы забрать' : later ? 'появится позже' : '';
-  return '<div class="ug-item ' + (open ? 'is-open' : 'is-locked') + (fresh ? ' is-new' : '') + (open && sk && !fresh ? ' is-mine' : '') + '" data-act="skill-info" data-i="' + si + '">' +
+  var meta = !open ? esc(tag.toLowerCase()) : fresh ? 'нажми, чтобы забрать' : other ? 'скилл класса ' + esc(CLASSES[e.cls].name) : '';
+  return '<div class="ug-item ' + (open ? 'is-open' : 'is-locked') + (fresh ? ' is-new' : '') + (open && sk && !fresh && !other ? ' is-mine' : '') + (other ? ' is-other' : '') + '"' +
+    (other ? ' style="--cc:' + CLASSES[e.cls].color + '"' : '') + ' data-act="skill-info" data-i="' + si + '">' +
     (fresh ? '<span class="ug-item-new">новый</span>' : '') +
     '<div class="ug-item-ico">' + ico(open ? 'chip' : 'lock') + '</div>' +
     '<div><div class="ug-item-name">' + esc(name) + '</div>' + (meta ? '<div class="ug-item-meta">' + meta + '</div>' : '') + '</div></div>';
 }
 function skillInfo(i) {
-  var w = SKILL_SLOTS[i]; if (!w) return;
-  var open = skillOpen(w);
+  var e = skillSlots()[i]; if (!e) return;
+  var w = e.w, open = skillOpen(w), other = !slotMine(e);
   var tag = QUESTS.filter(function (q) { return q.id === w; })[0].tag;
-  var sk = skillOf(w);
+  var sk = slotSkill(e);
   if (open && sk) {
-    var fresh = skillFresh(w);
+    var fresh = slotFresh(e);
     if (fresh) markSeen(seenIds().concat(['ach:skill-' + w]));
     modal((fresh ? burst() : '<div class="ug-skill-ico">' + ico('chip') + '</div>') +
-      '<div class="ug-kicker">// ' + (fresh ? 'новый ИИ-скилл' : 'ИИ-скилл') + ' · ' + esc(tag.toLowerCase()) + '</div>' +
+      '<div class="ug-kicker">// ' + (fresh ? 'новый ИИ-скилл' : other ? 'ИИ-скилл класса ' + esc(CLASSES[e.cls].name) : 'ИИ-скилл') + ' · ' + esc(tag.toLowerCase()) + '</div>' +
       '<h2 class="ug-h2">' + esc(sk.name) + '</h2>' +
       '<p class="ug-p">' + esc(sk.desc) + '</p>' +
-      '<div class="ug-q-state is-done" style="margin-top:18px">' + ico('chat') + '<span>Скилл ждёт тебя в чате «Апгрейда». Как его установить, рассказываю в уроке.</span></div>' +
+      '<div class="ug-q-state is-done" style="margin-top:18px">' + ico('chat') + '<span>Скилл ждёт тебя в чате «Апгрейда». Как его установить, рассказываю в уроке' + (other ? ' в программе этого класса' : '') + '.</span></div>' +
       '<div class="ug-dialog-actions"><a class="ug-btn" href="' + esc(sk.url || CONFIG.SKILLS_URL || CONFIG.CHAT_URL) + '" target="_blank" rel="noopener">Забрать в чате</a></div>',
-      null, fresh ? 'ug-congrats' : '');
-    if (fresh) { music.sfx('achieve'); var it = root.querySelectorAll('.ug-inv .ug-item')[i]; if (it) it.outerHTML = skillItem(w, i); }
+      other ? CLASSES[e.cls].color : null, fresh ? 'ug-congrats' : '');
+    if (fresh) { music.sfx('achieve'); var it = root.querySelectorAll('.ug-inv .ug-item')[i]; if (it) it.outerHTML = skillItem(e, i); }
     return;
   }
   modal('<div class="ug-kicker">// ИИ-скилл · ' + esc(tag.toLowerCase()) + '</div>' +
     '<h2 class="ug-h2">' + (open ? 'Новый скилл' : 'Скрытый скилл') + '</h2>' +
     '<p class="ug-p">Скилл — это набор файлов, которые подгружаешь в ИИ, и она обретает новый навык. Каждую неделю в инвентаре появляется новый.</p>' +
     '<div class="ug-q-state ' + (open ? 'is-done' : '') + '" style="margin-top:18px">' + ico(open ? 'chip' : 'lock') + '<span>' +
-      (open && SKILLS[w] && SKILLS[w].byClass ? 'Скилл этой недели для твоего класса ещё готовится. Он появится здесь, как только будет готов.' : open ? 'Скилл открыт. Файлы лежат в канале потока.' : w === 'q1' ? 'Откроется вместе с уроками, после прохождения первых 4 квестов.' : 'Откроется: ' + esc(tag.toLowerCase()) + '.') + '</span></div>');
+      (open ? 'Скилл открыт. Файлы лежат в канале потока.' : w === 'q1' ? 'Откроется вместе с уроками, после прохождения первых 4 квестов.' : 'Откроется: ' + esc(tag.toLowerCase()) + '.') + '</span></div>');
 }
 
 /* короткие квесты пролога засчитываются сами */
