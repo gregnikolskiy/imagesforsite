@@ -4,7 +4,7 @@
 /* ================= НАСТРОЙКИ ================= */
 var CONFIG = {
   // метка сборки: вкладка сверяет её с version.txt рядом с player.js и сама перезагружается после обновления
-  BUILD: '202611240819',
+  BUILD: '202611250955',
   // URL веб-приложения Google Apps Script (…/exec). Пока пусто, страница работает в демо-режиме.
   API_URL: 'https://script.google.com/macros/s/AKfycbwVcbeIXzzxV-jEmRPfp96IFKkWv09D9UbQgwCD_JojGyjFizNrcEXsxx-NA_AVifsvdA/exec',
   // Адрес этой страницы, из него собирается личная ссылка игрока
@@ -1609,17 +1609,28 @@ function questInfo(id) {
 var SKILL_SLOTS = ['q1', 'q2', 'q3', 'q4'];
 // скиллы недель; пока у недели нет описания, в инвентаре она показана как «новый скилл»
 var SKILLS = {
-  q1: { name: 'Аналитика Никольского v.2', desc: 'По брифу клиента собирает в Notion три документа: анализ ЦА, анализ конкурентов и УТП.' }
+  q1: { name: 'Аналитика Никольского v.2', desc: 'По брифу клиента собирает в Notion три документа: анализ ЦА, анализ конкурентов и УТП.' },
+  // со второй недели у каждого класса свой скилл; у кого скилла нет, слот ждёт
+  q2: { byClass: {
+    packer:  { name: 'Прототипы Никольского', desc: 'Пишет тексты и собирает прототипы сайтов и презентаций по методологии Гриши.', url: 'https://t.me/c/3987431320/148/162' },
+    content: { name: 'Контент-план Никольского', desc: 'Собирает контент-планы для Telegram-канала, Инстаграма или Threads по методологии Гриши.', url: 'https://t.me/c/3987431320/148/163' }
+  } }
 };
+// скилл недели для класса игрока (или общий для всех)
+function skillOf(w) {
+  var sk = SKILLS[w]; if (!sk) return null;
+  return sk.byClass ? (sk.byClass[clsKey()] || null) : sk;
+}
 // «новый» скилл: неделя открыта, а игрок его ещё не открывал (отметка skill-… хранится вместе с ачивками)
 // скилл первой недели открывается вместе с уроками
 function skillOpen(w) { return w === 'q1' ? lessonsUnlocked() : weekOpen(w); }
-function skillFresh(w) { return !!SKILLS[w] && skillOpen(w) && seenIds().indexOf('ach:skill-' + w) < 0; }
+function skillFresh(w) { return !!skillOf(w) && skillOpen(w) && seenIds().indexOf('ach:skill-' + w) < 0; }
 function skillItem(w, si) {
-  var open = skillOpen(w), sk = SKILLS[w], fresh = skillFresh(w);
+  var open = skillOpen(w), sk = skillOf(w), fresh = skillFresh(w);
   var tag = QUESTS.filter(function (q) { return q.id === w; })[0].tag;
+  var later = open && !sk && SKILLS[w] && SKILLS[w].byClass;   // у класса игрока скилла этой недели пока нет
   var name = !open ? 'Скрытый скилл' : fresh ? 'Новый скилл' : sk ? sk.name : 'Новый скилл';
-  var meta = !open ? esc(tag.toLowerCase()) : fresh ? 'нажми, чтобы забрать' : '';
+  var meta = !open ? esc(tag.toLowerCase()) : fresh ? 'нажми, чтобы забрать' : later ? 'появится позже' : '';
   return '<div class="ug-item ' + (open ? 'is-open' : 'is-locked') + (fresh ? ' is-new' : '') + (open && sk && !fresh ? ' is-mine' : '') + '" data-act="skill-info" data-i="' + si + '">' +
     (fresh ? '<span class="ug-item-new">новый</span>' : '') +
     '<div class="ug-item-ico">' + ico(open ? 'chip' : 'lock') + '</div>' +
@@ -1629,7 +1640,7 @@ function skillInfo(i) {
   var w = SKILL_SLOTS[i]; if (!w) return;
   var open = skillOpen(w);
   var tag = QUESTS.filter(function (q) { return q.id === w; })[0].tag;
-  var sk = SKILLS[w];
+  var sk = skillOf(w);
   if (open && sk) {
     var fresh = skillFresh(w);
     if (fresh) markSeen(seenIds().concat(['ach:skill-' + w]));
@@ -1638,7 +1649,7 @@ function skillInfo(i) {
       '<h2 class="ug-h2">' + esc(sk.name) + '</h2>' +
       '<p class="ug-p">' + esc(sk.desc) + '</p>' +
       '<div class="ug-q-state is-done" style="margin-top:18px">' + ico('chat') + '<span>Скилл ждёт тебя в чате «Апгрейда». Как его установить, рассказываю в уроке.</span></div>' +
-      '<div class="ug-dialog-actions"><a class="ug-btn" href="' + esc(CONFIG.SKILLS_URL || CONFIG.CHAT_URL) + '" target="_blank" rel="noopener">Забрать в чате</a></div>',
+      '<div class="ug-dialog-actions"><a class="ug-btn" href="' + esc(sk.url || CONFIG.SKILLS_URL || CONFIG.CHAT_URL) + '" target="_blank" rel="noopener">Забрать в чате</a></div>',
       null, fresh ? 'ug-congrats' : '');
     if (fresh) { music.sfx('achieve'); var it = root.querySelectorAll('.ug-inv .ug-item')[i]; if (it) it.outerHTML = skillItem(w, i); }
     return;
@@ -1647,7 +1658,7 @@ function skillInfo(i) {
     '<h2 class="ug-h2">' + (open ? 'Новый скилл' : 'Скрытый скилл') + '</h2>' +
     '<p class="ug-p">Скилл — это набор файлов, которые подгружаешь в ИИ, и она обретает новый навык. Каждую неделю в инвентаре появляется новый.</p>' +
     '<div class="ug-q-state ' + (open ? 'is-done' : '') + '" style="margin-top:18px">' + ico(open ? 'chip' : 'lock') + '<span>' +
-      (open ? 'Скилл открыт. Файлы лежат в канале потока.' : w === 'q1' ? 'Откроется вместе с уроками, после прохождения первых 4 квестов.' : 'Откроется: ' + esc(tag.toLowerCase()) + '.') + '</span></div>');
+      (open && SKILLS[w] && SKILLS[w].byClass ? 'Скилл этой недели для твоего класса ещё готовится. Он появится здесь, как только будет готов.' : open ? 'Скилл открыт. Файлы лежат в канале потока.' : w === 'q1' ? 'Откроется вместе с уроками, после прохождения первых 4 квестов.' : 'Откроется: ' + esc(tag.toLowerCase()) + '.') + '</span></div>');
 }
 
 /* короткие квесты пролога засчитываются сами */
@@ -2041,27 +2052,31 @@ var LESSONS = {
       hint: 'Чтобы поменять свой класс, напиши @gregnikol',
       note: { q: 'Хочешь поменять свой класс?', a: 'Напиши Грише в Телеграм, он поменяет класс в твоём профиле.', url: 'https://t.me/gregnikol', btn: 'Написать @gregnikol' } },
     { id: 'w2-packer', cls: 'packer', title: 'Как смотреть вторую неделю за упаковщика?', main: true, video: 'https://play.boomstream.net/TR9EdKVf?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:9e496acfcb3df6ea005308d46a5c289d/bTIJqcBg-a1.jpg' },
-    { id: 'w2-p2', cls: 'packer', title: 'ИИ сетап упаковщика', main: true, date: '25.11', video: '' },
-    { id: 'w2-p3', cls: 'packer', title: 'Как я пишу продающие смыслы на сайты и презентации?', workshop: true, date: '25.11', video: '' },
-    { id: 'w2-p4', cls: 'packer', title: 'Разборы смыслов на реальных сайтах, практика', workshop: true, date: '25.11', video: '' },
-    { id: 'w2-p5', cls: 'packer', title: 'Как дизайнить с ИИ?', main: true, date: '26.11', video: '' },
-    { id: 'w2-p6', cls: 'packer', title: 'Как перетащить прототипы/дизайн из ИИ в Figma?', date: '27.11', video: '' },
-    { id: 'w2-p7', cls: 'packer', title: 'Как перетащить дизайн из ИИ в Tilda?', date: '27.11', video: '' },
-    { id: 'w2-p8', cls: 'packer', title: 'Как разместить сайт на домене?', date: '28.11', video: '' },
-    { id: 'w2-skills', cls: 'packer', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '28.11', video: '' },
+    { id: 'w2-p2', cls: 'packer', title: 'ИИ сетап упаковщика', main: true, date: '25.11', video: 'https://play.boomstream.net/nkEukmyr?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:0fab021eae54993f1ef8aacf32126d00/XoaGXvU6-a3.jpg',
+      note: { q: 'Где найти скилл «Прототипы Никольского»?', a: 'Перейди в дашборд персонажа, в раздел «ИИ-скиллы». Скилл уже ждёт тебя там.', act: 'goto-skills', btn: 'Перейти к скиллу' } },
+    { id: 'w2-p3', cls: 'packer', title: 'Как я пишу продающие смыслы на сайты и презентации?', workshop: true, date: '25.11', video: 'https://play.boomstream.net/hjjxqrka?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:e94c045c0cbbabb91e811a0abc9ad718/bcwSsy3z-a7.jpg' },
+    { id: 'w2-p4', cls: 'packer', title: 'Разборы смыслов на реальных сайтах, практика', workshop: true, date: '25.11', video: 'https://play.boomstream.net/WsrvDpHT?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:91571533ba8e0f5431a803c329df2f2e/wQxNh18L-a1.jpg' },
+    { id: 'w2-p5', cls: 'packer', title: 'Как дизайнить с ИИ?', main: true, date: '27.11', video: '' },
+    { id: 'w2-p6', cls: 'packer', title: 'Как перетащить прототипы/дизайн из ИИ в Figma?', date: '28.11', video: '' },
+    { id: 'w2-p7', cls: 'packer', title: 'Как перетащить дизайн из ИИ в Tilda?', date: '28.11', video: '' },
+    { id: 'w2-p8', cls: 'packer', title: 'Как разместить сайт на домене?', date: '29.11', video: '' },
+    { id: 'w2-skills', cls: 'packer', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '29.11', video: '' },
     { id: 'w2-content', cls: 'content', title: 'Как смотреть вторую неделю за контентщика?', main: true, video: 'https://play.boomstream.net/e4I1RSmN?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:f8e14f3ce93f05e8144764cb929732a5/eeIKjakg-a1.jpg' },
-    { id: 'w2-c2', cls: 'content', title: 'Как писать качественные посты с ИИ?', main: true, workshop: true, date: '25.11', video: '' },
-    { id: 'w2-c3', cls: 'content', title: 'Как делать контент-план с ИИ?', main: true, workshop: true, date: '25.11', video: '' },
-    { id: 'w2-c4', cls: 'content', title: 'ИИ сетап по каруселям и сценариям к рилсам', date: '26.11', video: '' },
-    { id: 'w2-c5', cls: 'content', title: 'ИИ сетап по монтажу рилсов', date: '27.11', video: '' },
-    { id: 'w2-c6', cls: 'content', title: 'ИИ сетап по тредсу', date: '28.11', video: '' },
-    { id: 'w2-skills', cls: 'content', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '28.11', video: '' },
+    { id: 'w2-cs', cls: 'content', title: 'ИИ сетап контентщика', main: true, date: '25.11', video: 'https://play.boomstream.net/KMCIvXPn?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:22f5e53ed4157baf045f5d788cbdb74d/tHA1Umkt-a1.jpg',
+      note: { q: 'Где найти скилл «Контент-план Никольского»?', a: 'Перейди в дашборд персонажа, в раздел «ИИ-скиллы». Скилл уже ждёт тебя там.', act: 'goto-skills', btn: 'Перейти к скиллу' } },
+    { id: 'w2-c3', cls: 'content', title: 'Как делать контент-план с ИИ?', main: true, workshop: true, date: '25.11', video: 'https://play.boomstream.net/HBnxHj10?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:bab19b2e1a9022ee1638e24ebf29128e/yjN4BYkI-a15.jpg' },
+    { id: 'w2-c2', cls: 'content', title: 'Как писать качественные посты с ИИ?', main: true, workshop: true, date: '25.11', video: 'https://play.boomstream.net/KfDTTfkv?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:bbba6359eba6db5bd4cfff6af7b6a2f6/488q0nST-a3.jpg',
+      materials: [{ type: 'file', title: 'Правила письма: инструкция для ИИ, чтобы он писал человечно, без нейроклише', url: 'https://t.me/c/3987431320/148/161' }] },
+    { id: 'w2-c4', cls: 'content', title: 'ИИ сетап по каруселям и сценариям к рилсам', date: '27.11', video: '' },
+    { id: 'w2-c5', cls: 'content', title: 'ИИ сетап по монтажу рилсов', date: '28.11', video: '' },
+    { id: 'w2-c6', cls: 'content', title: 'ИИ сетап по тредсу', date: '29.11', video: '' },
+    { id: 'w2-skills', cls: 'content', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '29.11', video: '' },
     { id: 'w2-strategist', cls: 'strategist', title: 'Как смотреть вторую неделю за стратега?', main: true, video: 'https://play.boomstream.net/h5buvxSJ?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:42777ee4d7d5bc0d9b915b36d82efa03/0w3QmIeJ-a1.jpg' },
-    { id: 'w2-s2', cls: 'strategist', title: 'Как у меня выглядит ведение комплексных проектов за 300к+/мес.?', main: true, date: '25.11', video: '' },
-    { id: 'w2-s3', cls: 'strategist', title: 'Как я формирую план проекта, и какую услугу я там буду оказывать?', main: true, date: '26.11', video: '' },
-    { id: 'w2-s4', cls: 'strategist', title: 'Как я собираю команду под проект? А что делаю сам?', main: true, date: '27.11', video: '' },
-    { id: 'w2-s5', cls: 'strategist', title: 'Как я выявляю рутинные процессы, которые надо делегировать ИИ?', date: '27.11', video: '' },
-    { id: 'w2-skills', cls: 'strategist', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '28.11', video: '' }
+    { id: 'w2-s2', cls: 'strategist', title: 'Как у меня выглядит ведение комплексных проектов за 300к+/мес.?', main: true, date: '25.11', video: 'https://play.boomstream.net/Lck3RjIG?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:678addc009a38968b31cadb63b120fa6/pqvhz81V-a5.jpg' },
+    { id: 'w2-s3', cls: 'strategist', title: 'Как я формирую план проекта, и какую услугу я там буду оказывать?', main: true, date: '27.11', video: '' },
+    { id: 'w2-s4', cls: 'strategist', title: 'Как я собираю команду под проект? А что делаю сам?', main: true, date: '28.11', video: '' },
+    { id: 'w2-s5', cls: 'strategist', title: 'Как я выявляю рутинные процессы, которые надо делегировать ИИ?', date: '28.11', video: '' },
+    { id: 'w2-skills', cls: 'strategist', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '29.11', video: '' }
   ],
   q3: [], q4: []
 };
