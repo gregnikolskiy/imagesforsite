@@ -4,7 +4,7 @@
 /* ================= НАСТРОЙКИ ================= */
 var CONFIG = {
   // метка сборки: вкладка сверяет её с version.txt рядом с player.js и сама перезагружается после обновления
-  BUILD: '202611251001',
+  BUILD: '202611251005',
   // URL веб-приложения Google Apps Script (…/exec). Пока пусто, страница работает в демо-режиме.
   API_URL: 'https://script.google.com/macros/s/AKfycbwVcbeIXzzxV-jEmRPfp96IFKkWv09D9UbQgwCD_JojGyjFizNrcEXsxx-NA_AVifsvdA/exec',
   // Адрес этой страницы, из него собирается личная ссылка игрока
@@ -2081,7 +2081,9 @@ var LESSONS = {
     { id: 'w2-content', cls: 'content', title: 'Как смотреть вторую неделю за контентщика?', main: true, video: 'https://play.boomstream.net/e4I1RSmN?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:f8e14f3ce93f05e8144764cb929732a5/eeIKjakg-a1.jpg' },
     { id: 'w2-cs', cls: 'content', title: 'ИИ сетап контентщика', main: true, date: '25.11', video: 'https://play.boomstream.net/KMCIvXPn?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:22f5e53ed4157baf045f5d788cbdb74d/tHA1Umkt-a1.jpg',
       note: { q: 'Где найти скилл «Контент-план Никольского»?', a: 'Перейди в дашборд персонажа, в раздел «ИИ-скиллы». Скилл уже ждёт тебя там.', act: 'goto-skills', btn: 'Перейти к скиллу' } },
-    { id: 'w2-c3', cls: 'content', title: 'Как делать контент-план с ИИ?', main: true, workshop: true, date: '25.11', video: 'https://play.boomstream.net/HBnxHj10?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:bab19b2e1a9022ee1638e24ebf29128e/yjN4BYkI-a15.jpg' },
+    { id: 'w2-c3', cls: 'content', title: 'Как делать контент-план с ИИ?', main: true, workshop: true, date: '25.11', video: 'https://play.boomstream.net/HBnxHj10?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:bab19b2e1a9022ee1638e24ebf29128e/yjN4BYkI-a15.jpg',
+      hint: 'Записан на примере Telegram-канала, по той же логике собираются планы для Instagram и Threads',
+      warn: { q: 'Урок записан на примере Telegram-канала', a: 'По этой же логике делаются контент-планы для Instagram и Threads. Даже если ты не ведёшь Telegram-канал, обязательно посмотри урок: схема работает для любой соцсети.' } },
     { id: 'w2-c2', cls: 'content', title: 'Как писать качественные посты с ИИ?', main: true, workshop: true, date: '25.11', video: 'https://play.boomstream.net/KfDTTfkv?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:bbba6359eba6db5bd4cfff6af7b6a2f6/488q0nST-a3.jpg',
       materials: [{ type: 'file', title: 'Правила письма: инструкция для ИИ, чтобы он писал человечно, без нейроклише', url: 'https://t.me/c/3987431320/148/161' }] },
     { id: 'w2-c4', cls: 'content', title: 'ИИ сетап по каруселям и сценариям к рилсам', date: '27.11', video: '' },
@@ -2287,6 +2289,7 @@ function openLesson(id) {
   var week = WEEKS.indexOf(f.w) + 1, srcv = videoSource(l.video), vid = srcv.id;
   modal('<div class="ug-kicker">// неделя ' + week + ' · урок ' + f.n + (lessonMain(l) ? ' · главный' : '') + '</div>' +
     '<h2 class="ug-h2">' + esc(l.title) + '</h2>' +
+    (l.warn ? '<div class="ug-lnote is-warn">' + ico('chip') + '<div><b>' + esc(l.warn.q) + '</b><span>' + esc(l.warn.a) + '</span></div></div>' : '') +
     (l.video
       ? '<div class="ug-player"><div id="ug-kplayer"></div></div><div class="ug-lwatch" id="ug-lwatch">' + watchState(id) + '</div>'
       : '<div class="ug-player is-empty"><div class="ug-player-soon">' + ico('hourglass') + '<span>Видео появится здесь совсем скоро</span></div></div>') +
