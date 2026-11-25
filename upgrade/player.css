@@ -1122,3 +1122,5 @@
 #ug-root .ug-thumb-file b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
 #ug-root .ug-thumb-file .ug-ico{width:20px;height:20px;color:var(--acc);flex:0 0 auto}
 #ug-root .ug-qlink textarea{width:100%;resize:vertical}
+#ug-root .ug-item.is-other .ug-item-ico{color:var(--cc)}
+#ug-root .ug-item.is-other .ug-item-meta{color:var(--cc)}
