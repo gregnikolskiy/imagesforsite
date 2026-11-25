@@ -1124,3 +1124,4 @@
 #ug-root .ug-qlink textarea{width:100%;resize:vertical}
 #ug-root .ug-item.is-other .ug-item-ico{color:var(--cc)}
 #ug-root .ug-item.is-other .ug-item-meta{color:var(--cc)}
+#ug-root .ug-lnote.is-warn{margin:0 0 14px}
