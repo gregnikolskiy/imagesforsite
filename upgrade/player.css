@@ -1125,3 +1125,4 @@
 #ug-root .ug-item.is-other .ug-item-ico{color:var(--cc)}
 #ug-root .ug-item.is-other .ug-item-meta{color:var(--cc)}
 #ug-root .ug-lnote.is-warn{margin:0 0 14px}
+#ug-root .ug-prompt{margin-top:8px;padding:10px 12px;border-left:2px solid var(--acc);background:rgba(255,255,255,.03);font-size:14px;line-height:1.5;color:#e6e8f2;white-space:pre-wrap;user-select:text}
