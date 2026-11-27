@@ -4,7 +4,7 @@
 /* ================= НАСТРОЙКИ ================= */
 var CONFIG = {
   // метка сборки: вкладка сверяет её с version.txt рядом с player.js и сама перезагружается после обновления
-  BUILD: '202611251005',
+  BUILD: '202611271039',
   // URL веб-приложения Google Apps Script (…/exec). Пока пусто, страница работает в демо-режиме.
   API_URL: 'https://script.google.com/macros/s/AKfycbwVcbeIXzzxV-jEmRPfp96IFKkWv09D9UbQgwCD_JojGyjFizNrcEXsxx-NA_AVifsvdA/exec',
   // Адрес этой страницы, из него собирается личная ссылка игрока
@@ -881,8 +881,8 @@ function toast(msg) {
   t.textContent = msg; t.classList.add('is-on');
   clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('is-on'); }, 2600);
 }
-function copy(text) {
-  var done = function () { toast('Ссылка скопирована'); };
+function copy(text, msg) {
+  var done = function () { toast(msg || 'Ссылка скопирована'); };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
   } else { fallbackCopy(text); done(); }
@@ -1613,35 +1613,39 @@ var SKILLS = {
   // со второй недели у каждого класса свой скилл; у кого скилла нет, слот ждёт
   q2: { byClass: {
     packer:  { name: 'Прототипы Никольского', desc: 'Пишет тексты и собирает прототипы сайтов и презентаций по методологии Гриши.', url: 'https://t.me/c/3987431320/148/162' },
-    content: { name: 'Контент-план Никольского', desc: 'Собирает контент-планы для Telegram-канала, Инстаграма или Threads по методологии Гриши.', url: 'https://t.me/c/3987431320/148/163' }
+    content: [{ name: 'Контент-план Никольского', desc: 'Собирает контент-планы для Telegram-канала, Инстаграма или Threads по методологии Гриши.', url: 'https://t.me/c/3987431320/148/163'},
+      { id: 'q2-reels', name: 'Сценарии рилсов Никольского', desc: 'Разбирает твои рилсы и рилсы конкурентов, собирает паспорт рилсов в Notion, предлагает идеи и пишет сценарии.', url: 'https://t.me/c/3987431320/148/207' },
+      { id: 'q2-carousels', name: 'Карусели Никольского', desc: 'Пишет тексты каруселей для Инстаграма по слайдам и верстает их в стиле автора.', url: 'https://t.me/c/3987431320/148/208' }]
   } }
 };
 // скилл недели для класса игрока (или общий для всех)
 function skillOf(w) {
   var sk = SKILLS[w]; if (!sk) return null;
-  return sk.byClass ? (sk.byClass[clsKey()] || null) : sk;
+  return sk.byClass ? (clsSkills(w, clsKey())[0] || null) : sk;
 }
 // «новый» скилл: неделя открыта, а игрок его ещё не открывал (отметка skill-… хранится вместе с ачивками)
 // скилл первой недели открывается вместе с уроками
 function skillOpen(w) { return w === 'q1' ? lessonsUnlocked() : weekOpen(w); }
-function skillFresh(w) { return !!skillOf(w) && skillOpen(w) && seenIds().indexOf('ach:skill-' + w) < 0; }
+// в ветке класса может быть несколько скиллов: значение либо один скилл, либо список
+function clsSkills(w, k) { var v = SKILLS[w] && SKILLS[w].byClass && SKILLS[w].byClass[k]; return !v ? [] : Array.isArray(v) ? v : [v]; }
+function skillSeenId(w, sk) { return 'ach:skill-' + ((sk && sk.id) || w); }
 // слоты инвентаря: по одному на неделю; в неделе с ветками сначала скилл своего класса, следом скиллы других классов
 function skillSlots() {
   var out = [], mine = clsKey();
   SKILL_SLOTS.forEach(function (w) {
     var sk = SKILLS[w];
     if (sk && sk.byClass && skillOpen(w)) {
-      var keys = Object.keys(CLASSES).filter(function (k) { return sk.byClass[k]; });
+      var keys = Object.keys(CLASSES).filter(function (k) { return clsSkills(w, k).length; });
       keys.sort(function (a, b) { return (b === mine) - (a === mine); });
       if (!keys.length) out.push({ w: w });
-      keys.forEach(function (k) { out.push({ w: w, cls: k }); });
+      keys.forEach(function (k) { clsSkills(w, k).forEach(function (x, n) { out.push({ w: w, cls: k, n: n }); }); });
     } else out.push({ w: w });
   });
   return out;
 }
-function slotSkill(e) { return e.cls ? SKILLS[e.w].byClass[e.cls] : skillOf(e.w); }
+function slotSkill(e) { return e.cls ? clsSkills(e.w, e.cls)[e.n] : skillOf(e.w); }
 function slotMine(e) { return !e.cls || e.cls === clsKey(); }
-function slotFresh(e) { return slotMine(e) && skillFresh(e.w); }
+function slotFresh(e) { var sk = slotSkill(e); return slotMine(e) && !!sk && skillOpen(e.w) && seenIds().indexOf(skillSeenId(e.w, sk)) < 0; }
 function skillItem(e, si) {
   var w = e.w, open = skillOpen(w), sk = slotSkill(e), fresh = slotFresh(e), other = !slotMine(e);
   var tag = QUESTS.filter(function (q) { return q.id === w; })[0].tag;
@@ -1660,7 +1664,7 @@ function skillInfo(i) {
   var sk = slotSkill(e);
   if (open && sk) {
     var fresh = slotFresh(e);
-    if (fresh) markSeen(seenIds().concat(['ach:skill-' + w]));
+    if (fresh) markSeen(seenIds().concat([skillSeenId(w, sk)]));
     modal((fresh ? burst() : '<div class="ug-skill-ico">' + ico('chip') + '</div>') +
       '<div class="ug-kicker">// ' + (fresh ? 'новый ИИ-скилл' : other ? 'ИИ-скилл класса ' + esc(CLASSES[e.cls].name) : 'ИИ-скилл') + ' · ' + esc(tag.toLowerCase()) + '</div>' +
       '<h2 class="ug-h2">' + esc(sk.name) + '</h2>' +
@@ -2071,9 +2075,12 @@ var LESSONS = {
     { id: 'w2-packer', cls: 'packer', title: 'Как смотреть вторую неделю за упаковщика?', main: true, video: 'https://play.boomstream.net/TR9EdKVf?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:9e496acfcb3df6ea005308d46a5c289d/bTIJqcBg-a1.jpg' },
     { id: 'w2-p2', cls: 'packer', title: 'ИИ сетап упаковщика', main: true, date: '25.11', video: 'https://play.boomstream.net/nkEukmyr?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:0fab021eae54993f1ef8aacf32126d00/XoaGXvU6-a3.jpg',
       note: { q: 'Где найти скилл «Прототипы Никольского»?', a: 'Перейди в дашборд персонажа, в раздел «ИИ-скиллы». Скилл уже ждёт тебя там.', act: 'goto-skills', btn: 'Перейти к скиллу' } },
+    { id: 'w2-p5', cls: 'packer', title: 'Как дизайнить с ИИ?', main: true, date: '27.11', video: 'https://play.boomstream.net/qmP45J8d?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:50603ff7ed09a976d91a6b0613d8fddb/RfAmjyrs-a1.jpg',
+      materials: [{ type: 'prompt', title: 'Промпт: фотореалистичное изображение вместо серого прямоугольника',
+        before: 'Отправь в ChatGPT скриншот слайда или экрана из прототипа и вставь этот текст:',
+        text: 'Сгенерируй мне фотореалистичное изображение, которое встанет на место серого прямоугольника с этого скриншота. Я сам его вставлю в этот слайд, отдай мне только само изображение. Учти контекст слайда и соотношение сторон изображения.' }] },
     { id: 'w2-p3', cls: 'packer', title: 'Как я пишу продающие смыслы на сайты и презентации?', workshop: true, date: '25.11', video: 'https://play.boomstream.net/hjjxqrka?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:e94c045c0cbbabb91e811a0abc9ad718/bcwSsy3z-a7.jpg' },
     { id: 'w2-p4', cls: 'packer', title: 'Разборы смыслов на реальных сайтах, практика', workshop: true, date: '25.11', video: 'https://play.boomstream.net/WsrvDpHT?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:91571533ba8e0f5431a803c329df2f2e/wQxNh18L-a1.jpg' },
-    { id: 'w2-p5', cls: 'packer', title: 'Как дизайнить с ИИ?', main: true, date: '27.11', video: '' },
     { id: 'w2-p6', cls: 'packer', title: 'Как перетащить прототипы/дизайн из ИИ в Figma?', date: '28.11', video: '' },
     { id: 'w2-p7', cls: 'packer', title: 'Как перетащить дизайн из ИИ в Tilda?', date: '28.11', video: '' },
     { id: 'w2-p8', cls: 'packer', title: 'Как разместить сайт на домене?', date: '29.11', video: '' },
@@ -2086,13 +2093,14 @@ var LESSONS = {
       warn: { q: 'Урок записан на примере Telegram-канала', a: 'По этой же логике делаются контент-планы для Instagram и Threads. Даже если ты не ведёшь Telegram-канал, обязательно посмотри урок: схема работает для любой соцсети.' } },
     { id: 'w2-c2', cls: 'content', title: 'Как писать качественные посты с ИИ?', main: true, workshop: true, date: '25.11', video: 'https://play.boomstream.net/KfDTTfkv?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:bbba6359eba6db5bd4cfff6af7b6a2f6/488q0nST-a3.jpg',
       materials: [{ type: 'file', title: 'Правила письма: инструкция для ИИ, чтобы он писал человечно, без нейроклише', url: 'https://t.me/c/3987431320/148/161' }] },
-    { id: 'w2-c4', cls: 'content', title: 'ИИ сетап по каруселям и сценариям к рилсам', date: '27.11', video: '' },
+    { id: 'w2-c4', cls: 'content', title: 'ИИ сетап по каруселям и рилсам', date: '27.11', video: 'https://play.boomstream.net/OVAXJivz?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:1f615836b3bd3363ae4e855452271c2c/VClxF4Hx-a1.jpg',
+      note: { q: 'Где найти скиллы по рилсам и каруселям?', a: 'Перейди в дашборд персонажа, в раздел «ИИ-скиллы». Оба скилла уже ждут тебя там.', act: 'goto-skills', btn: 'Перейти к скиллам' } },
     { id: 'w2-c5', cls: 'content', title: 'ИИ сетап по монтажу рилсов', date: '28.11', video: '' },
     { id: 'w2-c6', cls: 'content', title: 'ИИ сетап по тредсу', date: '29.11', video: '' },
     { id: 'w2-skills', cls: 'content', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '29.11', video: '' },
     { id: 'w2-strategist', cls: 'strategist', title: 'Как смотреть вторую неделю за стратега?', main: true, video: 'https://play.boomstream.net/h5buvxSJ?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:42777ee4d7d5bc0d9b915b36d82efa03/0w3QmIeJ-a1.jpg' },
     { id: 'w2-s2', cls: 'strategist', title: 'Как у меня выглядит ведение комплексных проектов за 300к+/мес.?', main: true, date: '25.11', video: 'https://play.boomstream.net/Lck3RjIG?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:678addc009a38968b31cadb63b120fa6/pqvhz81V-a5.jpg' },
-    { id: 'w2-s3', cls: 'strategist', title: 'Как я формирую план проекта, и какую услугу я там буду оказывать?', main: true, date: '27.11', video: '' },
+    { id: 'w2-s3', cls: 'strategist', title: 'Как я формирую план проекта, и какую услугу я там буду оказывать?', main: true, date: '27.11', video: 'https://play.boomstream.net/tWFRXlLt?title=0', cover: 'https://bs.boomstream.com/balancer/size:300/hash:330a1e0316d3b6521a282c4ecb31f723/TAafGbV8-a1.jpg' },
     { id: 'w2-s4', cls: 'strategist', title: 'Как я собираю команду под проект? А что делаю сам?', main: true, date: '28.11', video: '' },
     { id: 'w2-s5', cls: 'strategist', title: 'Как я выявляю рутинные процессы, которые надо делегировать ИИ?', date: '28.11', video: '' },
     { id: 'w2-skills', cls: 'strategist', title: 'Как автоматизировать ЛЮБЫЕ свои задачи через ИИ СКИЛЛЫ?', workshop: true, date: '29.11', video: '' }
@@ -2185,8 +2193,10 @@ function lessonsInner() {
     body = list.map(function (l, i) {
       var seen = watched(l.id), ready = !!l.video, isNext = i === next;
       var meta = [];
-      var nf = (l.materials || []).filter(function (m) { return m.type === 'file'; }).length, nt = (l.materials || []).length - nf;
+      var nf = (l.materials || []).filter(function (m) { return m.type === 'file'; }).length;
+      var np = (l.materials || []).filter(function (m) { return m.type === 'prompt'; }).length, nt = (l.materials || []).length - nf - np;
       if (nf) meta.push(ico('clip') + (nf > 1 ? nf + ' файла' : 'файл'));
+      if (np) meta.push(ico('clip') + (np > 1 ? np + ' промпта' : 'промпт'));
       if (nt) meta.push(ico('clip') + (nt > 1 ? nt + ' шаблона' : 'шаблон'));
       var chips = '';
       if (!ready) chips += '<span class="ug-lchip is-date">' + ico('clock') + (l.date ? 'выйдет ' + esc(l.date) : 'видео скоро') + '</span>';
@@ -2269,7 +2279,16 @@ function loadKinescope() {
   });
   return kinescopeReady;
 }
+var PROMPTS = [];
 function materialHtml(m) {
+  if (m.type === 'prompt') {
+    var pi = PROMPTS.indexOf(m.text); if (pi < 0) { PROMPTS.push(m.text); pi = PROMPTS.length - 1; }
+    return '<div class="ug-mat"><div class="ug-mat-row"><span class="ug-mat-ico">' + ico('chat') + '</span>' +
+      '<span class="ug-mat-t">' + esc(m.title) + '</span>' +
+      '<button class="ug-btn is-ghost is-small" data-act="copy-prompt" data-p="' + pi + '">' + ico('doc') + 'Скопировать</button></div>' +
+      (m.before ? '<div class="ug-mat-note">' + esc(m.before) + '</div>' : '') +
+      '<div class="ug-prompt">' + esc(m.text) + '</div></div>';
+  }
   var url = m.url || '';
   if (m.type === 'gdoc' && url) url = url.replace(/\/(edit|view)[^/]*$/, '/copy');
   var btn = url
@@ -2764,6 +2783,7 @@ var ACTIONS = {
   'lesson': function (el) { openLesson(el.getAttribute('data-l')); },
   'lesson-done': function (el) { markWatched(el.getAttribute('data-l')); },
   // из урока к инвентарю: закрываем окно, едем к скиллам и один раз подсвечиваем панель
+  'copy-prompt': function (el) { var t = PROMPTS[+el.getAttribute('data-p')]; if (t) copy(t, 'Промпт скопирован'); },
   'goto-skills': function () {
     closeModal();
     var inv = root.querySelector('#ug-inv-panel'); if (!inv) return;
